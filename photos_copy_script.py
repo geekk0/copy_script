@@ -1,19 +1,24 @@
 import os
 import shutil
-from datetime import datetime
 import time
+
+from datetime import datetime
 from configparser import ConfigParser
+
+import pytz
+
 from loguru import logger
 
 
 class FileCopier:
     def __init__(self, config):
         self.config = config
+        self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
 
     def get_current_month_and_date(self):
-        current_month_ru = datetime.now().strftime('%B')
+        current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
         current_month = self.translate_month_to_russian(current_month_ru)
-        current_date = datetime.now().strftime('%d.%m')
+        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
         return current_month, current_date
 
     def translate_month_to_russian(self, month_name):
@@ -88,6 +93,7 @@ class FileCopier:
                 continue
 
             self.copy_files(base_path)
+            self.print_files_exist_message(base_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
