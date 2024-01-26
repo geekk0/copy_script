@@ -3,6 +3,8 @@ import shutil
 from datetime import datetime
 import time
 from configparser import ConfigParser
+from loguru import logger
+
 
 class FileCopier:
     def __init__(self, config):
@@ -44,12 +46,12 @@ class FileCopier:
         allowed_extension = self.config["FileExtension"].lower()
 
         for filename in os.listdir(base_path):
-
             source_file = os.path.join(base_path, filename)
 
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
-                continue
+                continue  # Skip files that don't have the allowed extension
 
+            # Process only files with the allowed extension at the source folder level
             initial_size = os.path.getsize(source_file)
             time.sleep(int(self.config["FileSizeCheckInterval"]))
             current_size = os.path.getsize(source_file)
@@ -58,7 +60,7 @@ class FileCopier:
                 destination_hour_range = self.get_hour_range_from_creation_time(source_file)
 
                 if not destination_hour_range:
-                    print(f"Skipped file '{filename}' due to invalid creation time.")
+                    logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
                     continue
 
                 destination_subdir = os.path.join(base_path, destination_hour_range)
@@ -67,15 +69,12 @@ class FileCopier:
                 destination_file = os.path.join(destination_subdir, filename)
 
                 if os.path.exists(destination_file):
-                    print(f"File '{filename}' already exists in '{destination_subdir}'.")
+                    logger.info(f"File '{filename}' already exists in '{destination_subdir}'.")
                 else:
                     shutil.copy2(source_file, destination_file)
-                    print(f"File '{filename}' copied to '{destination_subdir}'.")
+                    logger.info(f"File '{filename}' copied to '{destination_subdir}'.")
             else:
-                print(f"File '{filename}' is still being written. Skipping.")
-
-        # Print message for files in groups that exist in destination folders
-        self.print_files_exist_message(base_path)
+                logger.warning(f"File '{filename}' is still being written. Skipping.")
 
     def run(self):
         while True:
@@ -84,7 +83,7 @@ class FileCopier:
             base_path = self.construct_paths(current_month, current_date)
 
             if not os.path.exists(base_path):
-                print(f"Base directory '{base_path}' does not exist.")
+                logger.warning(f"Base directory '{base_path}' does not exist.")
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
@@ -116,7 +115,7 @@ class FileCopier:
 
             # Check if all files in the group exist in the destination folder
             if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
-                print(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
+                logger.info(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
 
     @staticmethod
     def get_hour_range_from_creation_time(file_path):
@@ -126,7 +125,7 @@ class FileCopier:
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
             return hour_range
         except Exception as e:
-            print(f"Error retrieving creation time for '{file_path}': {e}")
+            logger.error(f"Error retrieving creation time for '{file_path}': {e}")
             return None
 
     def get_current_hour_range(self):
@@ -138,12 +137,18 @@ class FileCopier:
         previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
         return f"{previous_hour}-{previous_hour + 1}"
 
+
 def read_config():
     config = ConfigParser()
     config.read('copy_script_config.ini')
     return config['Settings']
 
+
 if __name__ == "__main__":
+    config = read_config()
+    log_file_name = config.get("LogFile")
+    logger.add(log_file_name, rotation="10 MB", level="INFO")
+
     config = read_config()
 
     file_copier = FileCopier(config)
