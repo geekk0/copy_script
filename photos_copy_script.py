@@ -41,8 +41,14 @@ class FileCopier:
         return base_path
 
     def copy_files(self, base_path):
+        allowed_extension = self.config["FileExtension"].lower()
+
         for filename in os.listdir(base_path):
+
             source_file = os.path.join(base_path, filename)
+
+            if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
+                continue
 
             initial_size = os.path.getsize(source_file)
             time.sleep(int(self.config["FileSizeCheckInterval"]))
@@ -68,6 +74,9 @@ class FileCopier:
             else:
                 print(f"File '{filename}' is still being written. Skipping.")
 
+        # Print message for files in groups that exist in destination folders
+        self.print_files_exist_message(base_path)
+
     def run(self):
         while True:
             current_month, current_date = self.get_current_month_and_date()
@@ -83,6 +92,32 @@ class FileCopier:
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
+    def print_files_exist_message(self, base_path):
+        current_hour_range = self.get_current_hour_range()
+        source_files = os.listdir(base_path)
+
+        # Dictionary to store file groups based on creation time
+        file_groups = {}
+
+        for filename in source_files:
+            source_file = os.path.join(base_path, filename)
+            creation_time_range = self.get_hour_range_from_creation_time(source_file)
+
+            if creation_time_range == current_hour_range:
+                continue  # Skip files created in the current hour
+
+            if creation_time_range not in file_groups:
+                file_groups[creation_time_range] = [filename]
+            else:
+                file_groups[creation_time_range].append(filename)
+
+        for hour_range, filenames in file_groups.items():
+            destination_subdir = os.path.join(base_path, hour_range)
+
+            # Check if all files in the group exist in the destination folder
+            if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
+                print(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
+
     @staticmethod
     def get_hour_range_from_creation_time(file_path):
         try:
@@ -93,6 +128,15 @@ class FileCopier:
         except Exception as e:
             print(f"Error retrieving creation time for '{file_path}': {e}")
             return None
+
+    def get_current_hour_range(self):
+        current_hour = datetime.now().hour
+        return f"{current_hour}-{current_hour + 1}"
+
+    def get_previous_hour_range(self):
+        current_hour = datetime.now().hour
+        previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
+        return f"{previous_hour}-{previous_hour + 1}"
 
 def read_config():
     config = ConfigParser()
