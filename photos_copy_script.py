@@ -133,11 +133,11 @@ class FileCopier:
             return None
 
     def get_current_hour_range(self):
-        current_hour = datetime.now().hour
+        current_hour = datetime.now(self.timezone_moscow).hour
         return f"{current_hour}-{current_hour + 1}"
 
     def get_previous_hour_range(self):
-        current_hour = datetime.now().hour
+        current_hour = datetime.now(self.timezone_moscow).hour
         previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
         return f"{previous_hour}-{previous_hour + 1}"
 
