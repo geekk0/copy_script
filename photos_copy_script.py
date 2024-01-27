@@ -73,11 +73,10 @@ class FileCopier:
 
                 destination_file = os.path.join(destination_subdir, filename)
 
-                if os.path.exists(destination_file):
-                    logger.info(f"File '{filename}' already exists in '{destination_subdir}'.")
-                else:
+                if not os.path.exists(destination_file):
                     shutil.copy2(source_file, destination_file)
                     logger.info(f"File '{filename}' copied to '{destination_subdir}'.")
+
             else:
                 logger.warning(f"File '{filename}' is still being written. Skipping.")
 
@@ -88,7 +87,7 @@ class FileCopier:
             base_path = self.construct_paths(current_month, current_date)
 
             if not os.path.exists(base_path):
-                logger.warning(f"Base directory '{base_path}' does not exist.")
+                # logger.warning(f"Base directory '{base_path}' does not exist.")
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
@@ -123,11 +122,10 @@ class FileCopier:
             if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
                 logger.info(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
 
-    @staticmethod
-    def get_hour_range_from_creation_time(file_path):
+    def get_hour_range_from_creation_time(self, file_path):
         try:
             creation_time = os.path.getctime(file_path)
-            creation_datetime = datetime.fromtimestamp(creation_time)
+            creation_datetime = datetime.fromtimestamp(creation_time, self.timezone_moscow)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
             return hour_range
         except Exception as e:
