@@ -127,15 +127,15 @@ class FileCopier:
 
             # Check if all files in the group exist in the destination folder
             if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
-                logger.info(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
+                asyncio.run(self.run_index(destination_subdir, base_path))
 
-        self.processed_folders.add(base_path)
-
-    async def run_index(self, destination_subdir):
+    async def run_index(self, destination_subdir, base_path):
         # Your asynchronous logic here
         setproctitle.setproctitle("copy_script_run_index")
 
         command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p /reflect/files/test/{destination_subdir}'
+
+        logger.info(f"processed_folders: {self.processed_folders}")
 
         try:
             process = await asyncio.create_subprocess_shell(
@@ -149,6 +149,7 @@ class FileCopier:
 
             if process.returncode == 0:
                 logger.info(f"Command executed successfully: {command}")
+                self.processed_folders.add(base_path)
             else:
                 logger.error(f"Error executing command: {command}, stderr: {stderr.decode()}")
 
@@ -183,6 +184,7 @@ class FileCopier:
         if current_date != getattr(self, '_last_checked_date', None):
             self.processed_folders.clear()
             self._last_checked_date = current_date
+            logger.info(f"Cleared processed folders for new day: {current_date}")
 
 
 def read_config():
