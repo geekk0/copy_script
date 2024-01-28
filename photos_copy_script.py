@@ -1,11 +1,13 @@
 import os
 import shutil
 import time
+import asyncio
 
 from datetime import datetime
 from configparser import ConfigParser
 
 import pytz
+import setproctitle
 
 from loguru import logger
 
@@ -14,6 +16,7 @@ class FileCopier:
     def __init__(self, config):
         self.config = config
         self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
+        self.processed_folders = set()  # Set to store processed folders
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -92,11 +95,14 @@ class FileCopier:
                 continue
 
             self.copy_files(base_path)
-            self.print_files_exist_message(base_path)
+            self.check_folder_all_files_exist(base_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
-    def print_files_exist_message(self, base_path):
+    def check_folder_all_files_exist(self, base_path):
+        if base_path in self.processed_folders:
+            return
+
         current_hour_range = self.get_current_hour_range()
         source_files = os.listdir(base_path)
 
@@ -121,6 +127,34 @@ class FileCopier:
             # Check if all files in the group exist in the destination folder
             if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
                 logger.info(f"All files in the group created at {hour_range} exist in '{destination_subdir}'.")
+
+        self.processed_folders.add(base_path)
+
+    async def run_index(self, destination_subdir):
+        # Your asynchronous logic here
+        setproctitle.setproctitle("copy_script_run_index")
+
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p /reflect/files/test/{destination_subdir}'
+
+        try:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            # Wait for the command to complete
+            stdout, stderr = await process.communicate()
+
+            if process.returncode == 0:
+                logger.info(f"Command executed successfully: {command}")
+            else:
+                logger.error(f"Error executing command: {command}, stderr: {stderr.decode()}")
+
+        except asyncio.CancelledError:
+            logger.warning("Command execution was cancelled.")
+        except Exception as e:
+            logger.error(f"Error executing command: {command}, {e}")
 
     def get_hour_range_from_creation_time(self, file_path):
         try:
