@@ -85,8 +85,9 @@ class FileCopier:
 
     def run(self):
         while True:
-            current_month, current_date = self.get_current_month_and_date()
+            self.clear_processed_folders_if_new_day()
 
+            current_month, current_date = self.get_current_month_and_date()
             base_path = self.construct_paths(current_month, current_date)
 
             if not os.path.exists(base_path):
@@ -176,6 +177,12 @@ class FileCopier:
         current_hour = datetime.now(self.timezone_moscow).hour
         previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
         return f"{previous_hour}-{previous_hour + 1}"
+
+    def clear_processed_folders_if_new_day(self):
+        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        if current_date != getattr(self, '_last_checked_date', None):
+            self.processed_folders.clear()
+            self._last_checked_date = current_date
 
 
 def read_config():
