@@ -127,7 +127,8 @@ class FileCopier:
             creation_time = os.path.getctime(file_path)
             creation_datetime = datetime.fromtimestamp(creation_time, self.timezone_moscow)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
-            print(f"File: {file_path}, Creation Time: {creation_datetime}, Hour Range: {hour_range}")
+            logger.info(f"File: {file_path}, Creation Time: {creation_datetime}, Hour Range: {hour_range}")
+            # print(f"File: {file_path}, Creation Time: {creation_datetime}, Hour Range: {hour_range}")
             return hour_range
         except Exception as e:
             logger.error(f"Error retrieving creation time for '{file_path}': {e}")
@@ -152,7 +153,10 @@ def read_config():
 if __name__ == "__main__":
     config = read_config()
     log_file_name = config.get("LogFile")
-    logger.add(log_file_name, rotation="10 MB", level="INFO")
+    logger.add(log_file_name,
+               format="{time} {level} {message}",
+               rotation="10 MB",
+               level="INFO")
 
     config = read_config()
 
