@@ -91,7 +91,6 @@ class FileCopier:
             base_path = self.construct_paths(current_month, current_date)
 
             if not os.path.exists(base_path):
-                # logger.warning(f"Base directory '{base_path}' does not exist.")
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
@@ -105,7 +104,7 @@ class FileCopier:
             return
 
         current_hour_range = self.get_current_hour_range()
-        source_files = os.listdir(base_path)
+        source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))]
 
         # Dictionary to store file groups based on creation time
         file_groups = {}
@@ -130,12 +129,13 @@ class FileCopier:
                 asyncio.run(self.run_index(destination_subdir, base_path))
 
     async def run_index(self, destination_subdir, base_path):
-        # Your asynchronous logic here
         setproctitle.setproctitle("copy_script_run_index")
 
-        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p /reflect/files/test/{destination_subdir}'
+        formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
 
-        logger.info(f"processed_folders: {self.processed_folders}")
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+
+        logger.info(f"command: {command}")
 
         try:
             process = await asyncio.create_subprocess_shell(
@@ -153,18 +153,29 @@ class FileCopier:
             else:
                 logger.error(f"Error executing command: {command}, stderr: {stderr.decode()}")
 
+            logger.info(f"Console output: {process.stdout}")
+
         except asyncio.CancelledError:
             logger.warning("Command execution was cancelled.")
         except Exception as e:
             logger.error(f"Error executing command: {command}, {e}")
+
+    def modify_path_for_index(self, destination_subdir):
+        destination_subdir = destination_subdir.replace('/cloud', '')
+        studio = self.config["Studio_name"]
+        parts = destination_subdir.split(studio)
+
+        second_part = parts[1]
+        month_studio_part = second_part.split("/")[1]
+        month_studio_part_quoted = f'"{month_studio_part}"'
+        new_second_part = second_part.replace(month_studio_part, month_studio_part_quoted)
+        return parts[0] + studio + new_second_part
 
     def get_hour_range_from_creation_time(self, file_path):
         try:
             creation_time = os.path.getctime(file_path)
             creation_datetime = datetime.fromtimestamp(creation_time, self.timezone_moscow)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
-            logger.info(f"File: {file_path}, Creation Time: {creation_datetime}, Hour Range: {hour_range}")
-            # print(f"File: {file_path}, Creation Time: {creation_datetime}, Hour Range: {hour_range}")
             return hour_range
         except Exception as e:
             logger.error(f"Error retrieving creation time for '{file_path}': {e}")
