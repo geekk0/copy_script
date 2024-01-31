@@ -41,16 +41,30 @@ class FileCopier:
         }
         return month_mapping.get(month_name, month_name)
 
-    def construct_paths(self, current_month, current_date):
+    def construct_paths(self, current_month, current_date, hour_range):
         base_path = os.path.join(
             self.config["BaseDirPath"],
             self.config["Studio_name"],
             f'{current_month} {self.config["Studio_name"].upper()}',
-            current_date
+            current_date,
+            hour_range
         )
         return base_path
 
+    def copy_file(self, source_file, destination_path):
+        filename = os.path.basename(source_file)
+        destination_file = os.path.join(destination_path, filename)
+
+        if not os.path.exists(destination_file):
+            try:
+                os.makedirs(destination_path, exist_ok=True)
+                shutil.copy2(source_file, destination_file)
+                logger.info(f"File '{filename}' copied to '{destination_path}'.")
+            except Exception as e:
+                print(e)
+
     def copy_files(self, base_path):
+
         allowed_extension = self.config["FileExtension"].lower()
 
         for filename in os.listdir(base_path):
@@ -58,6 +72,13 @@ class FileCopier:
 
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
                 continue  # Skip files that don't have the allowed extension
+
+            creation_date = datetime.fromtimestamp(os.path.getctime(source_file), self.timezone_moscow).strftime(
+                '%d.%m')
+            current_date = self.get_current_month_and_date()[1]
+
+            if creation_date != current_date:
+                continue
 
             # Process only files with the allowed extension at the source folder level
             initial_size = os.path.getsize(source_file)
@@ -71,14 +92,11 @@ class FileCopier:
                     logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
                     continue
 
-                destination_subdir = os.path.join(base_path, destination_hour_range)
-                os.makedirs(destination_subdir, exist_ok=True)
+                current_month, current_date = self.get_current_month_and_date()
+                destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
 
-                destination_file = os.path.join(destination_subdir, filename)
-
-                if not os.path.exists(destination_file):
-                    shutil.copy2(source_file, destination_file)
-                    logger.info(f"File '{filename}' copied to '{destination_subdir}'.")
+                self.copy_file(source_file, destination_path)
+                return destination_path
 
             else:
                 logger.warning(f"File '{filename}' is still being written. Skipping.")
@@ -90,17 +108,26 @@ class FileCopier:
             current_month, current_date = self.get_current_month_and_date()
             base_path = self.construct_paths(current_month, current_date)
 
-            if not os.path.exists(base_path):
+            studio_root_path = os.path.join(self.config["BaseDirPath"], self.config["Studio_name"])
+
+            if not os.path.exists(studio_root_path):
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
-            self.copy_files(base_path)
-            self.check_folder_all_files_exist(base_path)
+            destination_path = self.copy_files(studio_root_path)
+            if destination_path:
+                self.check_folder_all_files_exist(studio_root_path, destination_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
-    def check_folder_all_files_exist(self, base_path):
-        if base_path in self.processed_folders:
+    def check_folder_all_files_exist(self, base_path, destination_path):
+
+        logger.info(f"processed_folders: {self.processed_folders}")
+        logger.info(f"destination_path: {destination_path}")
+
+        destination_path_for_check = destination_path.replace('/cloud', '')
+
+        if destination_path_for_check in self.processed_folders:
             return
 
         current_hour_range = self.get_current_hour_range()
