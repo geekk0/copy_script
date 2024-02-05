@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import time
 import asyncio
+import argparse
 import json
 
 from datetime import datetime
@@ -12,6 +13,10 @@ import pytz
 import setproctitle
 
 from loguru import logger
+
+parser = argparse.ArgumentParser(description='Script for copying and indexing files.')
+parser.add_argument('--studio', required=True, help='Studio name')
+args = parser.parse_args()
 
 
 class FileCopier:
@@ -340,9 +345,11 @@ if __name__ == "__main__":
     logger.add(log_file_name,
                format="{time} {level} {message}",
                rotation="10 MB",
+               compression='zip',
                level="INFO")
 
-    config = read_config()
+    config['Studio_name'] = args.studio  # Set the studio name based on the command-line argument
 
     file_copier = FileCopier(config)
     file_copier.run()
+
