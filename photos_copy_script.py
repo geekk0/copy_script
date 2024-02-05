@@ -1,7 +1,9 @@
 import os
 import shutil
+import subprocess
 import time
 import asyncio
+import json
 
 from datetime import datetime
 from configparser import ConfigParser
@@ -14,9 +16,12 @@ from loguru import logger
 
 class FileCopier:
     def __init__(self, config):
+        self.destination_path = None
         self.config = config
         self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
-        self.processed_folders = set()  # Set to store processed folders
+        # saved_data = self.load_processed_folders()
+        self.processed_folders = []
+        # self._last_checked_date = saved_data.get('last_checked_date')
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -63,11 +68,14 @@ class FileCopier:
             except Exception as e:
                 print(e)
 
-    def copy_files(self, base_path):
+    def process_files(self, base_path):
 
         allowed_extension = self.config["FileExtension"].lower()
 
         for filename in os.listdir(base_path):
+
+            logger.info(f"files: '{os.listdir(base_path)}'")
+
             source_file = os.path.join(base_path, filename)
 
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
@@ -76,6 +84,10 @@ class FileCopier:
             creation_date = datetime.fromtimestamp(os.path.getctime(source_file), self.timezone_moscow).strftime(
                 '%d.%m')
             current_date = self.get_current_month_and_date()[1]
+
+            logger.info(f"Processing file '{source_file}'")
+            logger.info(f"Creation date: {creation_date}")
+            logger.info(f"Current date: {current_date}")
 
             if creation_date != current_date:
                 continue
@@ -96,17 +108,17 @@ class FileCopier:
                 destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
 
                 self.copy_file(source_file, destination_path)
-                return destination_path
+                self.destination_path = destination_path
 
             else:
+                self.destination_path = None
                 logger.warning(f"File '{filename}' is still being written. Skipping.")
 
     def run(self):
-        while True:
-            self.clear_processed_folders_if_new_day()
+        self.loop = asyncio.get_event_loop()
 
-            current_month, current_date = self.get_current_month_and_date()
-            base_path = self.construct_paths(current_month, current_date)
+        while True:
+            self.update_processed_folders()
 
             studio_root_path = os.path.join(self.config["BaseDirPath"], self.config["Studio_name"])
 
@@ -114,20 +126,26 @@ class FileCopier:
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
-            destination_path = self.copy_files(studio_root_path)
-            if destination_path:
-                self.check_folder_all_files_exist(studio_root_path, destination_path)
+            self.process_files(studio_root_path)
+            if self.destination_path:
+                self.check_folder_all_files_exist(studio_root_path)
+
+                # loop.run_until_complete(self.run_index(self.destination_path, studio_root_path))
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
-    def check_folder_all_files_exist(self, base_path, destination_path):
+    def check_folder_all_files_exist(self, base_path):
 
         logger.info(f"processed_folders: {self.processed_folders}")
-        logger.info(f"destination_path: {destination_path}")
+        logger.info(f"destination_path: {self.destination_path}")
 
-        destination_path_for_check = destination_path.replace('/cloud', '')
+        # destination_path_for_check = self.destination_path.replace('/cloud', '')
 
-        if destination_path_for_check in self.processed_folders:
+        logger.info(f"destination_path in self.processed_folders: "
+                    f"{self.destination_path in self.processed_folders}")
+
+        if self.destination_path in self.processed_folders:
+            logger.info(f"{self.destination_path} exists in processed_folders")
             return
 
         current_hour_range = self.get_current_hour_range()
@@ -140,7 +158,15 @@ class FileCopier:
             source_file = os.path.join(base_path, filename)
             creation_time_range = self.get_hour_range_from_creation_time(source_file)
 
+            creation_date = datetime.fromtimestamp(os.path.getctime(source_file), self.timezone_moscow).strftime(
+                '%d.%m')
+            current_date = self.get_current_month_and_date()[1]
+
+            if creation_date != current_date:
+                continue
+
             if creation_time_range == current_hour_range:
+                logger.info('file created this hour range')
                 continue  # Skip files created in the current hour
 
             if creation_time_range not in file_groups:
@@ -149,13 +175,21 @@ class FileCopier:
                 file_groups[creation_time_range].append(filename)
 
         for hour_range, filenames in file_groups.items():
-            destination_subdir = os.path.join(base_path, hour_range)
+            logger.info(f"filenames: {filenames}")
 
             # Check if all files in the group exist in the destination folder
-            if all(os.path.exists(os.path.join(destination_subdir, filename)) for filename in filenames):
-                asyncio.run(self.run_index(destination_subdir, base_path))
 
-    async def run_index(self, destination_subdir, base_path):
+            for filename in filenames:
+                logger.info(f"dest_file_path: {os.path.join(self.destination_path, filename)}")
+
+            logger.info(f"all files exist in dest folder:"
+                        f"{all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames)}")
+
+            if all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames):
+                logger.info('before start index')
+                self.run_index(self.destination_path)
+
+    def run_index(self, destination_subdir):
         setproctitle.setproctitle("copy_script_run_index")
 
         formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
@@ -165,27 +199,61 @@ class FileCopier:
         logger.info(f"command: {command}")
 
         try:
-            process = await asyncio.create_subprocess_shell(
+            process = subprocess.run(
                 command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                shell=True,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-
-            # Wait for the command to complete
-            stdout, stderr = await process.communicate()
 
             if process.returncode == 0:
                 logger.info(f"Command executed successfully: {command}")
-                self.processed_folders.add(base_path)
+                self.processed_folders.append(destination_subdir)
+                self.save_processed_folders()
             else:
-                logger.error(f"Error executing command: {command}, stderr: {stderr.decode()}")
+                logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
 
-            logger.info(f"Console output: {process.stdout}")
+            logger.info(f"Console output: {process.stdout.decode()}")
 
-        except asyncio.CancelledError:
-            logger.warning("Command execution was cancelled.")
         except Exception as e:
             logger.error(f"Error executing command: {command}, {e}")
+
+    # async def main(self, destination_path, base_path):
+    #     setproctitle.setproctitle("copy_script_run_index")
+    #
+    #     formatted_dest_subdir = self.modify_path_for_index(destination_path)
+    #
+    #     command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+    #
+    #     logger.info(f"command: {command}")
+    #
+    #     try:
+    #         process = await asyncio.create_subprocess_shell(
+    #             command,
+    #             stdout=asyncio.subprocess.PIPE,
+    #             stderr=asyncio.subprocess.PIPE
+    #         )
+    #
+    #         # Wait for the command to complete
+    #         stdout, stderr = await process.communicate()
+    #
+    #         if process.returncode == 0:
+    #             logger.info(f"Command executed successfully: {command}")
+    #             self.processed_folders.append(destination_path)
+    #             self.save_processed_folders()
+    #         else:
+    #             logger.error(f"Error executing command: {command}, stderr: {stderr.decode()}")
+    #
+    #         logger.info(f"Console output: {process.stdout}")
+    #
+    #     except asyncio.CancelledError:
+    #         logger.warning("Command execution was cancelled.")
+    #     except Exception as e:
+    #         logger.error(f"Error executing command: {command}, {e}")
+    #
+    # async def run_index(self, destination_subdir, base_path):
+    #     await self.main(destination_subdir, base_path)
 
     def modify_path_for_index(self, destination_subdir):
         destination_subdir = destination_subdir.replace('/cloud', '')
@@ -217,12 +285,47 @@ class FileCopier:
         previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
         return f"{previous_hour}-{previous_hour + 1}"
 
-    def clear_processed_folders_if_new_day(self):
+    def update_processed_folders(self):
         current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
-        if current_date != getattr(self, '_last_checked_date', None):
-            self.processed_folders.clear()
-            self._last_checked_date = current_date
-            logger.info(f"Cleared processed folders for new day: {current_date}")
+        processed_data = self.load_processed_folders()
+        process_date = processed_data.get('process_date')
+        processed_folders = processed_data.get('folders_path')
+
+        if process_date:
+            logger.info(f"Processed date: {process_date}")
+            logger.info(f"Current date: {current_date}")
+            logger.info(f"Processed folders: {processed_folders}")
+            self.processed_folders = processed_folders
+
+            if process_date == current_date:
+                self.processed_folders = processed_folders
+            else:
+                self.clear_processed_folders()
+
+    @staticmethod
+    def load_processed_folders():
+        try:
+            with open('processed_folders.json', 'r') as file:
+                data = json.load(file)
+                return data
+        except FileNotFoundError:
+            return {'process_date': None, 'processed_folders': []}
+
+    def save_processed_folders(self):
+        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+
+        data = {
+            'process_date': current_date,
+            'folders_path': list(self.processed_folders)
+        }
+
+        with open('processed_folders.json', 'w') as file:
+            json.dump(data, file)
+
+    @staticmethod
+    def clear_processed_folders():
+        with open('processed_folders.json', 'w') as json_file:
+            json.dump({}, json_file)
 
 
 def read_config():
