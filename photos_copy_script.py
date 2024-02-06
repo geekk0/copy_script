@@ -3,8 +3,9 @@ import shutil
 import subprocess
 import time
 import asyncio
-import argparse
 import json
+import pwd
+import grp
 
 from datetime import datetime
 from configparser import ConfigParser
@@ -13,10 +14,6 @@ import pytz
 import setproctitle
 
 from loguru import logger
-
-parser = argparse.ArgumentParser(description='Script for copying and indexing files.')
-parser.add_argument('--studio', required=True, help='Studio name')
-args = parser.parse_args()
 
 
 class FileCopier:
@@ -59,6 +56,7 @@ class FileCopier:
             current_date,
             hour_range
         )
+        logger.info(f'base_path for {self.config["Studio_name"]}: {base_path}')
         return base_path
 
     def copy_file(self, source_file, destination_path):
@@ -71,15 +69,14 @@ class FileCopier:
                 shutil.copy2(source_file, destination_file)
                 logger.info(f"File '{filename}' copied to '{destination_path}'.")
             except Exception as e:
-                print(e)
+                logger.info(f"source_file: {source_file}")
+                logger.info(e)
 
     def process_files(self, base_path):
 
         allowed_extension = self.config["FileExtension"].lower()
 
         for filename in os.listdir(base_path):
-
-            logger.info(f"files: '{os.listdir(base_path)}'")
 
             source_file = os.path.join(base_path, filename)
 
@@ -170,9 +167,9 @@ class FileCopier:
             if creation_date != current_date:
                 continue
 
-            if creation_time_range == current_hour_range:
-                logger.info('file created this hour range')
-                continue  # Skip files created in the current hour
+            # if creation_time_range == current_hour_range:
+            #     logger.info('file created this hour range')
+            #     continue  # Skip files created in the current hour
 
             if creation_time_range not in file_groups:
                 file_groups[creation_time_range] = [filename]
@@ -180,18 +177,15 @@ class FileCopier:
                 file_groups[creation_time_range].append(filename)
 
         for hour_range, filenames in file_groups.items():
-            logger.info(f"filenames: {filenames}")
 
             # Check if all files in the group exist in the destination folder
-
-            for filename in filenames:
-                logger.info(f"dest_file_path: {os.path.join(self.destination_path, filename)}")
 
             logger.info(f"all files exist in dest folder:"
                         f"{all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames)}")
 
             if all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames):
-                logger.info('before start index')
+                logger.info('all files exist, start chown and index')
+                self.change_ownership(self.destination_path)
                 self.run_index(self.destination_path)
 
     def run_index(self, destination_subdir):
@@ -290,6 +284,20 @@ class FileCopier:
         previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
         return f"{previous_hour}-{previous_hour + 1}"
 
+    @staticmethod
+    def change_ownership(directory_path, user='www-data', group='www-data'):
+        try:
+            uid = pwd.getpwnam(user).pw_uid
+            gid = grp.getgrnam(group).gr_gid
+
+            while directory_path != '/':
+                os.chown(directory_path, uid, gid)
+                directory_path = os.path.dirname(directory_path)
+
+        except Exception as e:
+            logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+
+
     def update_processed_folders(self):
         current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
         processed_data = self.load_processed_folders()
@@ -340,7 +348,9 @@ def read_config():
 
 
 if __name__ == "__main__":
+    studio_name = input("Enter the studio name: ")
     config = read_config()
+    config["Studio_name"] = studio_name
     log_file_name = config.get("LogFile")
     logger.add(log_file_name,
                format="{time} {level} {message}",
@@ -348,8 +358,5 @@ if __name__ == "__main__":
                compression='zip',
                level="INFO")
 
-    config['Studio_name'] = args.studio  # Set the studio name based on the command-line argument
-
     file_copier = FileCopier(config)
     file_copier.run()
-
