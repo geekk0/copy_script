@@ -50,7 +50,6 @@ class FileCopier:
     def construct_paths(self, current_month, current_date, hour_range):
         base_path = os.path.join(
             self.config["BaseDirPath"],
-            self.config["Studio_name"],
             f'{current_month} {self.config["Studio_name"].upper()}',
             current_date,
             hour_range
@@ -58,18 +57,16 @@ class FileCopier:
         logger.info(f'base_path for {self.config["Studio_name"]}: {base_path}')
         return base_path
 
-    def copy_file(self, source_file, destination_path):
+    def move_file(self, source_file, destination_path):
         filename = os.path.basename(source_file)
         destination_file = os.path.join(destination_path, filename)
 
         if not os.path.exists(destination_file):
             try:
                 os.makedirs(destination_path, exist_ok=True)
-                shutil.copy2(source_file, destination_file)
-                logger.info(f"File '{filename}' copied to '{destination_path}'.")
+                shutil.move(source_file, destination_file)
             except Exception as e:
-                logger.info(f"source_file: {source_file}")
-                logger.info(e)
+                self.logger.error(f"Error moving file '{filename}' to '{destination_path}': {e}")
 
     def process_files(self, base_path):
 
@@ -109,7 +106,7 @@ class FileCopier:
                     current_month, current_date = self.get_current_month_and_date()
                     destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
 
-                    self.copy_file(source_file, destination_path)
+                    self.move_file(source_file, destination_path)
                     self.destination_path = destination_path
                 else:
                     self.destination_path = None
@@ -125,7 +122,7 @@ class FileCopier:
         while True:
             self.update_processed_folders()
 
-            studio_root_path = os.path.join(self.config["BaseDirPath"], self.config["Studio_name"])
+            studio_root_path = self.config["BaseDirPath"]
 
             logger.info(f'studio root path: {studio_root_path}')
 
@@ -174,9 +171,9 @@ class FileCopier:
             if creation_date != current_date:
                 continue
 
-            # if creation_time_range == current_hour_range:
-            #     logger.info('file created this hour range')
-            #     continue  # Skip files created in the current hour
+            if creation_time_range == current_hour_range:
+                logger.info('file created this hour range')
+                continue  # Skip files created in the current hour
 
             if creation_time_range not in file_groups:
                 file_groups[creation_time_range] = [filename]
@@ -202,36 +199,37 @@ class FileCopier:
                 self.run_index(self.destination_path)
 
     def run_index(self, destination_subdir):
-        setproctitle.setproctitle("copy_script_run_index")
-
-        destination_subdir = destination_subdir.replace('/cloud', '')
-
-        formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
-
-        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
-
-        logger.info(f"command: {command}")
-
-        try:
-            process = subprocess.run(
-                command,
-                shell=True,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-
-            if process.returncode == 0:
-                logger.info(f"Command executed successfully: {command}")
-                self.processed_folders.append(destination_subdir)
-                self.save_processed_folders()
-            else:
-                logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
-
-            logger.info(f"Console output: {process.stdout.decode()}")
-
-        except Exception as e:
-            logger.error(f"Error executing command: {command}, {e}")
+        logger.info(f'indexing... {destination_subdir}')
+        # setproctitle.setproctitle("copy_script_run_index")
+        #
+        # destination_subdir = destination_subdir.replace('/cloud', '')
+        #
+        # formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
+        #
+        # command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+        #
+        # logger.info(f"command: {command}")
+        #
+        # try:
+        #     process = subprocess.run(
+        #         command,
+        #         shell=True,
+        #         check=True,
+        #         stdout=subprocess.PIPE,
+        #         stderr=subprocess.PIPE
+        #     )
+        #
+        #     if process.returncode == 0:
+        #         logger.info(f"Command executed successfully: {command}")
+        #         self.processed_folders.append(destination_subdir)
+        #         self.save_processed_folders()
+        #     else:
+        #         logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
+        #
+        #     logger.info(f"Console output: {process.stdout.decode()}")
+        #
+        # except Exception as e:
+        #     logger.error(f"Error executing command: {command}, {e}")
 
     # async def main(self, destination_path, base_path):
     #     setproctitle.setproctitle("copy_script_run_index")
