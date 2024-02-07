@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import time
 import asyncio
 import json
@@ -21,9 +22,7 @@ class FileCopier:
         self.destination_path = None
         self.config = config
         self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
-        # saved_data = self.load_processed_folders()
         self.processed_folders = []
-        # self._last_checked_date = saved_data.get('last_checked_date')
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -97,34 +96,41 @@ class FileCopier:
             # Process only files with the allowed extension at the source folder level
             initial_size = os.path.getsize(source_file)
             time.sleep(int(self.config["FileSizeCheckInterval"]))
-            current_size = os.path.getsize(source_file)
+            try:
+                current_size = os.path.getsize(source_file)
 
-            if initial_size == current_size:
-                destination_hour_range = self.get_hour_range_from_creation_time(source_file)
+                if initial_size == current_size:
+                    destination_hour_range = self.get_hour_range_from_creation_time(source_file)
 
-                if not destination_hour_range:
-                    logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
-                    continue
+                    if not destination_hour_range:
+                        logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
+                        continue
 
-                current_month, current_date = self.get_current_month_and_date()
-                destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
+                    current_month, current_date = self.get_current_month_and_date()
+                    destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
 
-                self.copy_file(source_file, destination_path)
-                self.destination_path = destination_path
+                    self.copy_file(source_file, destination_path)
+                    self.destination_path = destination_path
+                else:
+                    self.destination_path = None
+                    logger.warning(f"File '{filename}' is still being written. Skipping.")
 
-            else:
-                self.destination_path = None
-                logger.warning(f"File '{filename}' is still being written. Skipping.")
+            except Exception as error_msg:
+                logger.error(f"can't get file size for file '{filename}': {error_msg}")
+                continue
 
     def run(self):
-        self.loop = asyncio.get_event_loop()
+        # self.loop = asyncio.get_event_loop()
 
         while True:
             self.update_processed_folders()
 
             studio_root_path = os.path.join(self.config["BaseDirPath"], self.config["Studio_name"])
 
+            logger.info(f'studio root path: {studio_root_path}')
+
             if not os.path.exists(studio_root_path):
+                logger.info('path_does_not_exist')
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
@@ -151,7 +157,8 @@ class FileCopier:
             return
 
         current_hour_range = self.get_current_hour_range()
-        source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))]
+        source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))
+                        and f.lower().endswith('.jpg')]
 
         # Dictionary to store file groups based on creation time
         file_groups = {}
@@ -176,20 +183,28 @@ class FileCopier:
             else:
                 file_groups[creation_time_range].append(filename)
 
+        logger.info(f'files to be: {file_groups.values()}')
+
         for hour_range, filenames in file_groups.items():
 
-            # Check if all files in the group exist in the destination folder
+            logger.info(f'raw path for 1st file: {os.path.join(self.destination_path, filenames[0])}')
+            logger.info(f'1st file exists: {os.path.exists(os.path.join(self.destination_path, filenames[0]))}')
 
-            logger.info(f"all files exist in dest folder:"
-                        f"{all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames)}")
+            dest_paths = [os.path.join(self.destination_path, filename) for filename in
+                          filenames]
+            logger.info(f'destination file paths: {dest_paths}')
+            all_exist = all(os.path.exists(path) for path in dest_paths)
+            logger.info(f"all files exist in dest folder: {all_exist}")
+            if all_exist:
 
-            if all(os.path.exists(os.path.join(self.destination_path, filename)) for filename in filenames):
                 logger.info('all files exist, start chown and index')
                 self.change_ownership(self.destination_path)
                 self.run_index(self.destination_path)
 
     def run_index(self, destination_subdir):
         setproctitle.setproctitle("copy_script_run_index")
+
+        destination_subdir = destination_subdir.replace('/cloud', '')
 
         formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
 
@@ -255,15 +270,30 @@ class FileCopier:
     #     await self.main(destination_subdir, base_path)
 
     def modify_path_for_index(self, destination_subdir):
-        destination_subdir = destination_subdir.replace('/cloud', '')
-        studio = self.config["Studio_name"]
-        parts = destination_subdir.split(studio)
+        # destination_subdir = destination_subdir.replace('/cloud', '')
+        # studio = self.config["Studio_name"]
+        # parts = destination_subdir.split(studio)
+        #
+        # second_part = parts[1]
+        # month_studio_part = second_part.split("/")[1]
+        # month_studio_part_quoted = f'"{month_studio_part}"'
+        # new_second_part = second_part.replace(month_studio_part, month_studio_part_quoted)
+        # return parts[0] + studio + new_second_part
 
-        second_part = parts[1]
-        month_studio_part = second_part.split("/")[1]
-        month_studio_part_quoted = f'"{month_studio_part}"'
-        new_second_part = second_part.replace(month_studio_part, month_studio_part_quoted)
-        return parts[0] + studio + new_second_part
+        # destination_subdir = destination_subdir.replace('/cloud', '')
+        folders = destination_subdir.split(os.path.sep)
+        wrapped_folders = ['"' + folder + '"' if folder else '' for folder in folders]
+        wrapped_path = os.path.sep.join(wrapped_folders)
+
+        return wrapped_path
+
+    def modify_path_for_exist_check(self, path):
+        # Quote each part of the path and join them back together
+        quoted_parts = [f'"{part}"' for part in path.split('/') if part]
+        formatted_path = '/'.join(quoted_parts)
+
+        # Return the formatted path as a raw string literal
+        return f'r"{formatted_path}"'
 
     def get_hour_range_from_creation_time(self, file_path):
         try:
@@ -341,17 +371,27 @@ class FileCopier:
             json.dump({}, json_file)
 
 
-def read_config():
+def read_config(config_file):
     config = ConfigParser()
-    config.read('copy_script_config.ini')
+    config.read(config_file)
     return config['Settings']
 
 
 if __name__ == "__main__":
-    studio_name = input("Enter the studio name: ")
-    config = read_config()
-    config["Studio_name"] = studio_name
+    if len(sys.argv) < 2:
+        print("Usage: python photos_copy_script.py <studio_config_file>")
+        sys.exit(1)
+
+    studio_config_file = sys.argv[1]
+    config = read_config(studio_config_file)
+
+    print(studio_config_file)
+    try:
+        studio_name = config.get("Studio_name")
+    except Exception as e:
+        print(e)
     log_file_name = config.get("LogFile")
+
     logger.add(log_file_name,
                format="{time} {level} {message}",
                rotation="10 MB",
