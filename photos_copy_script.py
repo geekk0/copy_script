@@ -23,6 +23,10 @@ class FileCopier:
         self.config = config
         self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
         self.processed_folders = []
+        self.index_queue = []
+        self.moved_file_path = None
+        self.file_destination_hour_range = None
+        self.ready_to_index = False
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -64,9 +68,12 @@ class FileCopier:
         if not os.path.exists(destination_file):
             try:
                 os.makedirs(destination_path, exist_ok=True)
+                logger.info(f'File {source_file} moved to {destination_path}')
                 shutil.move(source_file, destination_file)
+                self.moved_file_path = destination_file
             except Exception as e:
-                self.logger.error(f"Error moving file '{filename}' to '{destination_path}': {e}")
+                logger.error(f"Error moving file '{filename}' to '{destination_path}': {e}")
+                self.moved_file_path = None
 
     def process_files(self, base_path):
 
@@ -97,19 +104,23 @@ class FileCopier:
                 current_size = os.path.getsize(source_file)
 
                 if initial_size == current_size:
-                    destination_hour_range = self.get_hour_range_from_creation_time(source_file)
+                    self.file_destination_hour_range = self.get_hour_range_from_creation_time(source_file)
 
-                    if not destination_hour_range:
+                    if not self.file_destination_hour_range:
                         logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
                         continue
 
                     current_month, current_date = self.get_current_month_and_date()
-                    destination_path = self.construct_paths(current_month, current_date, destination_hour_range)
+                    destination_path = self.construct_paths(current_month,
+                                                            current_date,
+                                                            self.file_destination_hour_range)
 
                     self.move_file(source_file, destination_path)
                     self.destination_path = destination_path
                 else:
                     self.destination_path = None
+                    self.moved_file_path = None
+                    self.file_destination_hour_range = None
                     logger.warning(f"File '{filename}' is still being written. Skipping.")
 
             except Exception as error_msg:
@@ -117,8 +128,6 @@ class FileCopier:
                 continue
 
     def run(self):
-        # self.loop = asyncio.get_event_loop()
-
         while True:
             self.update_processed_folders()
 
@@ -126,28 +135,128 @@ class FileCopier:
 
             logger.info(f'studio root path: {studio_root_path}')
 
-            if not os.path.exists(studio_root_path):
+            if not self.check_folder_exists_os_path(studio_root_path):
                 logger.info('path_does_not_exist')
                 time.sleep(int(self.config["IterationSleepTime"]))
                 continue
 
             self.process_files(studio_root_path)
-            if self.destination_path:
-                self.check_folder_all_files_exist(studio_root_path)
 
-                # loop.run_until_complete(self.run_index(self.destination_path, studio_root_path))
+            logger.info(f'self.destination_path: {self.destination_path}')
+
+            if self.destination_path:
+                self.check_if_all_files_moved(studio_root_path)
+
+                if self.ready_to_index:
+                    self.add_to_index_queue(self.destination_path)
+
+            self.run_index_queue()
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
-    def check_folder_all_files_exist(self, base_path):
+    # def check_folder_all_files_exist(self, base_path):
+    #
+    #     logger.info(f"processed_folders: {self.processed_folders}")
+    #     logger.info(f"destination_path: {self.destination_path}")
+    #
+    #     # destination_path_for_check = self.destination_path.replace('/cloud', '')
+    #
+    #     logger.info(f"destination_path in self.processed_folders: "
+    #                 f"{self.destination_path in self.processed_folders}")
+    #
+    #     if self.destination_path in self.processed_folders:
+    #         logger.info(f"{self.destination_path} exists in processed_folders")
+    #         return
+    #
+    #     current_hour_range = self.get_current_hour_range()
+    #     source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))
+    #                     and f.lower().endswith('.jpg')]
+    #
+    #     # Dictionary to store file groups based on creation time
+    #     file_groups = {}
+    #
+    #     for filename in source_files:
+    #         source_file = os.path.join(base_path, filename)
+    #         creation_time_range = self.get_hour_range_from_creation_time(source_file)
+    #
+    #         creation_date = datetime.fromtimestamp(os.path.getctime(source_file), self.timezone_moscow).strftime(
+    #             '%d.%m')
+    #         current_date = self.get_current_month_and_date()[1]
+    #
+    #         if creation_date != current_date:
+    #             continue
+    #
+    #         if creation_time_range == current_hour_range:
+    #             logger.info('file created this hour range')
+    #             continue  # Skip files created in the current hour
+    #
+    #         if creation_time_range not in file_groups:
+    #             file_groups[creation_time_range] = [filename]
+    #         else:
+    #             file_groups[creation_time_range].append(filename)
+    #
+    #
+    #     for hour_range, filenames in file_groups.items():
+    #
+    #         logger.info(f'raw path for 1st file: {os.path.join(self.destination_path, filenames[0])}')
+    #         logger.info(f'1st file exists: {os.path.exists(os.path.join(self.destination_path, filenames[0]))}')
+    #
+    #         dest_paths = [os.path.join(self.destination_path, filename) for filename in
+    #                       filenames]
+    #         logger.info(f'destination file paths: {dest_paths}')
+    #         all_exist = all(os.path.exists(path) for path in dest_paths)
+    #         logger.info(f"all files exist in dest folder: {all_exist}")
+    #         if all_exist:
+    #
+    #             logger.info('all files exist, start chown and index')
+    #             self.change_ownership(self.destination_path)
+    #             self.run_index(self.destination_path)
 
+    def check_folder_exists_console(self, path):
+        command = f"ls {path}"
+        logger.info(f'command: {command}')
+        exit_status = os.system(command)
+        logger.info(f'exit_status: {exit_status}')
+        if exit_status == 0:
+            return True
+        else:
+            return False
+
+    def check_folder_exists_os_path(self, path):
+        if os.path.exists(path):
+            return True
+
+
+    def check_if_all_files_moved(self, base_path):
+        logger.info(f'base path: {base_path}')
+        logger.info(f'self.moved_file_path: {self.moved_file_path}, '
+                    f'self.file_destination_hour_range: {self.file_destination_hour_range}')
+        if not (self.moved_file_path and self.file_destination_hour_range):
+            logger.info(f"no parameters for this file")
+            return
+        if self.destination_path in self.processed_folders:
+            logger.info(f"{self.destination_path} exists in processed_folders")
+            return
+
+        source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))
+                        and f.lower().endswith('.jpg')]
+
+        logger.info(f'source_files: {source_files}')
+
+        same_hour_range = next((source_file for source_file in source_files if
+                              self.get_hour_range_from_creation_time(
+                                  os.path.join(base_path, source_file))
+                                == self.file_destination_hour_range),
+                             None)
+
+        logger.info(f'same_hour_range: {same_hour_range}')
+
+        if not same_hour_range:
+            self.ready_to_index = True
+
+    def check_folder_all_files_exist(self, base_path):
         logger.info(f"processed_folders: {self.processed_folders}")
         logger.info(f"destination_path: {self.destination_path}")
-
-        # destination_path_for_check = self.destination_path.replace('/cloud', '')
-
-        logger.info(f"destination_path in self.processed_folders: "
-                    f"{self.destination_path in self.processed_folders}")
 
         if self.destination_path in self.processed_folders:
             logger.info(f"{self.destination_path} exists in processed_folders")
@@ -180,56 +289,58 @@ class FileCopier:
             else:
                 file_groups[creation_time_range].append(filename)
 
-        logger.info(f'files to be: {file_groups.values()}')
-
         for hour_range, filenames in file_groups.items():
+            dest_paths = [os.path.join(self.destination_path, filename) for filename in filenames]
 
-            logger.info(f'raw path for 1st file: {os.path.join(self.destination_path, filenames[0])}')
-            logger.info(f'1st file exists: {os.path.exists(os.path.join(self.destination_path, filenames[0]))}')
-
-            dest_paths = [os.path.join(self.destination_path, filename) for filename in
-                          filenames]
-            logger.info(f'destination file paths: {dest_paths}')
             all_exist = all(os.path.exists(path) for path in dest_paths)
-            logger.info(f"all files exist in dest folder: {all_exist}")
-            if all_exist:
+            logger.info(f"All files from hour range {hour_range} exist in dest folder: {all_exist}")
 
-                logger.info('all files exist, start chown and index')
+            if all_exist:
+                logger.info('All files exist, start moving')
+                for filename in filenames:
+                    source_file = os.path.join(base_path, filename)
+                    destination_file = os.path.join(self.destination_path, filename)
+                    try:
+                        shutil.move(source_file, destination_file)
+                        logger.info(f"File '{filename}' moved to '{self.destination_path}'.")
+                    except Exception as e:
+                        logger.error(f"Error moving file '{filename}' to '{self.destination_path}': {e}")
+
+                logger.info('Start chown and index')
                 self.change_ownership(self.destination_path)
                 self.run_index(self.destination_path)
 
     def run_index(self, destination_subdir):
-        logger.info(f'indexing... {destination_subdir}')
-        # setproctitle.setproctitle("copy_script_run_index")
-        #
-        # destination_subdir = destination_subdir.replace('/cloud', '')
-        #
-        # formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
-        #
-        # command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
-        #
-        # logger.info(f"command: {command}")
-        #
-        # try:
-        #     process = subprocess.run(
-        #         command,
-        #         shell=True,
-        #         check=True,
-        #         stdout=subprocess.PIPE,
-        #         stderr=subprocess.PIPE
-        #     )
-        #
-        #     if process.returncode == 0:
-        #         logger.info(f"Command executed successfully: {command}")
-        #         self.processed_folders.append(destination_subdir)
-        #         self.save_processed_folders()
-        #     else:
-        #         logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
-        #
-        #     logger.info(f"Console output: {process.stdout.decode()}")
-        #
-        # except Exception as e:
-        #     logger.error(f"Error executing command: {command}, {e}")
+        setproctitle.setproctitle("copy_script_run_index")
+
+        destination_subdir = destination_subdir.replace('/cloud', '')
+
+        formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
+
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+
+        logger.info(f"command: {command}")
+
+        try:
+            process = subprocess.run(
+                command,
+                shell=True,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+
+            if process.returncode == 0:
+                logger.info(f"Command executed successfully: {command}")
+                self.processed_folders.append(destination_subdir)
+                self.save_processed_folders()
+            else:
+                logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
+
+            logger.info(f"Console output: {process.stdout.decode()}")
+
+        except Exception as e:
+            logger.error(f"Error executing command: {command}, {e}")
 
     # async def main(self, destination_path, base_path):
     #     setproctitle.setproctitle("copy_script_run_index")
@@ -266,6 +377,23 @@ class FileCopier:
     #
     # async def run_index(self, destination_subdir, base_path):
     #     await self.main(destination_subdir, base_path)
+
+    def mock_run_index(self, destination_subdir):
+        destination_subdir = destination_subdir.replace('/cloud', '')
+        formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+        logger.info(f"command: {command}")
+
+        logger.info(f"Command executed successfully: {command}")
+        self.processed_folders.append(destination_subdir)
+        self.save_processed_folders()
+
+    def run_index_queue(self):
+        for path in self.index_queue:
+            if path in self.processed_folders or not self.check_queue_hour_range(path):
+                continue
+            self.mock_run_index()
+            # self.run_index(path)
 
     def modify_path_for_index(self, destination_subdir):
         # destination_subdir = destination_subdir.replace('/cloud', '')
@@ -307,10 +435,11 @@ class FileCopier:
         current_hour = datetime.now(self.timezone_moscow).hour
         return f"{current_hour}-{current_hour + 1}"
 
-    def get_previous_hour_range(self):
-        current_hour = datetime.now(self.timezone_moscow).hour
-        previous_hour = (current_hour - 1) % 24  # Handle the case when the current hour is 0
-        return f"{previous_hour}-{previous_hour + 1}"
+    def check_queue_hour_range(self, path):
+        current_hour_range = self.get_current_hour_range()
+        hour_range = path.split('/')[-1]
+        if current_hour_range != hour_range:
+            return True
 
     @staticmethod
     def change_ownership(directory_path, user='www-data', group='www-data'):
@@ -325,6 +454,9 @@ class FileCopier:
         except Exception as e:
             logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
 
+    def add_to_index_queue(self, path):
+        self.index_queue.append(path)
+        self.save_processed_folders()
 
     def update_processed_folders(self):
         current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
@@ -333,9 +465,6 @@ class FileCopier:
         processed_folders = processed_data.get('folders_path')
 
         if process_date:
-            logger.info(f"Processed date: {process_date}")
-            logger.info(f"Current date: {current_date}")
-            logger.info(f"Processed folders: {processed_folders}")
             self.processed_folders = processed_folders
 
             if process_date == current_date:
@@ -343,35 +472,44 @@ class FileCopier:
             else:
                 self.clear_processed_folders()
 
-    @staticmethod
-    def load_processed_folders():
+    def load_processed_folders(self):
+        filename = f'processed_folders_{config.get("Studio_name")}.json'
+        if not os.path.isfile(filename):
+            logger.info('No processed folders found.')
+            self.save_processed_folders()
+            return {'process_date': None, 'folders_path': [], 'index_queue': []}
         try:
-            with open('processed_folders.json', 'r') as file:
-                data = json.load(file)
-                return data
-        except FileNotFoundError:
-            return {'process_date': None, 'processed_folders': []}
+            with open(filename, 'r') as file:
+                return json.load(file)
+        except Exception as e:
+            logger.error(f"Error loading processed folders: {e}")
+            return {'process_date': None, 'folders_path': [], 'index_queue': []}
 
     def save_processed_folders(self):
+        logger.info('running save_processed_folders')
         current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
 
         data = {
             'process_date': current_date,
-            'folders_path': list(self.processed_folders)
+            'folders_path': list(self.processed_folders),
+            'index_queue': list(self.index_queue)
         }
 
-        with open('processed_folders.json', 'w') as file:
+        logger.info(data)
+
+        with open(f'processed_folders_{config.get("Studio_name")}.json', 'w') as file:
             json.dump(data, file)
 
     @staticmethod
     def clear_processed_folders():
-        with open('processed_folders.json', 'w') as json_file:
+        with open(f'processed_folders_{config.get("Studio_name")}.json', 'w') as json_file:
             json.dump({}, json_file)
 
 
 def read_config(config_file):
-    config = ConfigParser()
-    config.read(config_file)
+    with open(config_file, 'r', encoding='utf-8') as file:
+        config = ConfigParser()
+        config.read_file(file)
     return config['Settings']
 
 
@@ -383,7 +521,6 @@ if __name__ == "__main__":
     studio_config_file = sys.argv[1]
     config = read_config(studio_config_file)
 
-    print(studio_config_file)
     try:
         studio_name = config.get("Studio_name")
     except Exception as e:
@@ -395,6 +532,9 @@ if __name__ == "__main__":
                rotation="10 MB",
                compression='zip',
                level="INFO")
+
+    studio_path = config.get("BaseDirPath")
+    logger.info(f'BaseDirPath: {studio_path}')
 
     file_copier = FileCopier(config)
     file_copier.run()
