@@ -1,4 +1,5 @@
 import os
+import os
 import shutil
 import subprocess
 import sys
@@ -150,7 +151,7 @@ class FileCopier:
                 if self.all_files_moved:
                     self.add_to_index_queue(self.destination_path)
 
-            self.run_index_queue()
+            self.run_index_queue(studio_root_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
@@ -228,12 +229,13 @@ class FileCopier:
         except Exception as e:
             logger.error(f"Error executing command: {command}, {e}")
 
-    def run_index_queue(self):
+    def run_index_queue(self, studio_root_path):
         for path in self.index_queue:
             if path in self.already_indexed_folders or not self.check_queue_hour_range(path):
                 continue
             self.change_ownership(path)
             self.run_index(path)
+            self.run_index(studio_root_path)
 
     def modify_path_for_index(self, destination_subdir):
         # destination_subdir = destination_subdir.replace('/cloud', '')
