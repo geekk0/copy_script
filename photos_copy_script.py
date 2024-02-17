@@ -10,6 +10,8 @@ import grp
 
 from datetime import datetime
 from configparser import ConfigParser
+from nextcloud_ocs import NextcloudOCS
+from tg_bot import TelegramBot
 
 import pytz
 import setproctitle
@@ -27,6 +29,9 @@ class FileCopier:
         self.moved_file_path = None
         self.file_destination_hour_range = None
         self.all_files_moved = False
+        self.new_indexed_folder = False
+        self.nextcloud_ocs = NextcloudOCS()
+        self.tg_bot = TelegramBot()
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -221,6 +226,7 @@ class FileCopier:
                 if destination_subdir in self.already_indexed_folders:
                     self.remove_from_index_queue(destination_subdir)
                 self.save_processed_folders()
+                self.new_indexed_folder = True
             else:
                 logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
 
@@ -235,6 +241,8 @@ class FileCopier:
                 continue
             self.change_ownership(path)
             self.run_index(path)
+            if self.new_indexed_folder:
+                self.send_folder_url(path)
             self.run_index(studio_root_path)
 
     def modify_path_for_index(self, destination_subdir):
@@ -308,6 +316,20 @@ class FileCopier:
 
         except Exception as e:
             logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+
+    def send_folder_url(self, folder):
+        self.nextcloud_ocs.get_token()
+        self.nextcloud_ocs.send_request_folder_share(folder)
+        if not self.nextcloud_ocs.check_response_errors():
+            logger.error(f'Error getting url: {self.nextcloud_ocs.error}')
+            return
+        self.nextcloud_ocs.get_url_from_response()
+
+        if not self.nextcloud_ocs.url:
+            logger.error(f'No url received: {self.nextcloud_ocs.error}')
+            return
+
+        self.tg_bot.notify_admin_folder_ready(folder, self.nextcloud_ocs.url)
 
     def add_to_index_queue(self, path):
         if path not in self.index_queue:
