@@ -1,5 +1,4 @@
 import os
-import os
 import shutil
 import subprocess
 import sys
@@ -87,7 +86,7 @@ class FileCopier:
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
                 continue  # Skip files that don't have the allowed extension
 
-            creation_date = datetime.fromtimestamp(os.path.getctime(source_file), self.timezone_moscow).strftime(
+            creation_date = datetime.fromtimestamp(self.get_creation_time(source_file), self.timezone_moscow).strftime(
                 '%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
@@ -219,7 +218,8 @@ class FileCopier:
             if process.returncode == 0:
                 logger.info(f"Command executed successfully: {command}")
                 self.already_indexed_folders.append(destination_subdir)
-                self.remove_from_index_queue(destination_subdir)
+                if destination_subdir in self.already_indexed_folders:
+                    self.remove_from_index_queue(destination_subdir)
                 self.save_processed_folders()
             else:
                 logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
@@ -265,7 +265,7 @@ class FileCopier:
 
     def get_hour_range_from_creation_time(self, file_path):
         try:
-            creation_time = os.path.getctime(file_path)
+            creation_time = self.get_creation_time(file_path)
             creation_datetime = datetime.fromtimestamp(creation_time, self.timezone_moscow)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
             return hour_range
@@ -284,6 +284,17 @@ class FileCopier:
             return True
         else:
             logger.info('file created this hour')
+
+    @staticmethod
+    def get_creation_time(file_path):
+        command = ['stat', '-c', '%W', file_path]
+        try:
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            creation_time_stat = result.stdout.strip()
+            return float(creation_time_stat)  # Convert to floating-point number
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing command: {e}")
+            return None
 
     @staticmethod
     def change_ownership(directory_path, user='www-data', group='www-data'):
