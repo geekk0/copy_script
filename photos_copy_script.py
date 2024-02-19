@@ -29,7 +29,6 @@ class FileCopier:
         self.moved_file_path = None
         self.file_destination_hour_range = None
         self.all_files_moved = False
-        self.new_indexed_folder = False
         self.nextcloud_ocs = NextcloudOCS()
         self.tg_bot = TelegramBot()
 
@@ -152,7 +151,7 @@ class FileCopier:
             if self.destination_path:
                 self.check_if_all_files_moved(studio_root_path)
 
-                if self.all_files_moved:
+                if self.all_files_moved and self.destination_path not in self.already_indexed_folders:
                     self.add_to_index_queue(self.destination_path)
 
             self.run_index_queue(studio_root_path)
@@ -223,10 +222,7 @@ class FileCopier:
             if process.returncode == 0:
                 logger.info(f"Command executed successfully: {command}")
                 self.already_indexed_folders.append(destination_subdir)
-                if destination_subdir in self.already_indexed_folders:
-                    self.remove_from_index_queue(destination_subdir)
                 self.save_processed_folders()
-                self.new_indexed_folder = True
             else:
                 logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
 
@@ -241,8 +237,8 @@ class FileCopier:
                 continue
             self.change_ownership(path)
             self.run_index(path)
-            if self.new_indexed_folder:
-                self.send_folder_url(path)
+            path_for_share = self.modify_path_for_share_folder(path)
+            self.send_folder_url(path_for_share)
             self.run_index(studio_root_path)
 
     def modify_path_for_index(self, destination_subdir):
@@ -270,6 +266,11 @@ class FileCopier:
 
         # Return the formatted path as a raw string literal
         return f'r"{formatted_path}"'
+
+    @staticmethod
+    def modify_path_for_share_folder(path):
+        new_path = path.split('/files/')[1]
+        return new_path
 
     def get_hour_range_from_creation_time(self, file_path):
         try:
@@ -319,17 +320,20 @@ class FileCopier:
 
     def send_folder_url(self, folder):
         self.nextcloud_ocs.get_token()
-        self.nextcloud_ocs.send_request_folder_share(folder)
-        if not self.nextcloud_ocs.check_response_errors():
+        if self.nextcloud_ocs.csrf_token:
+            self.nextcloud_ocs.send_request_folder_share(folder)
+        if self.nextcloud_ocs.error:
             logger.error(f'Error getting url: {self.nextcloud_ocs.error}')
             return
-        self.nextcloud_ocs.get_url_from_response()
+        if self.nextcloud_ocs.response:
+            self.nextcloud_ocs.get_url_from_response()
 
-        if not self.nextcloud_ocs.url:
-            logger.error(f'No url received: {self.nextcloud_ocs.error}')
+        if not self.nextcloud_ocs.shared_folder_url:
+            logger.error(f'No shared_folder_url received: {self.nextcloud_ocs.error}')
             return
 
-        self.tg_bot.notify_admin_folder_ready(folder, self.nextcloud_ocs.url)
+        if self.nextcloud_ocs.csrf_token and self.nextcloud_ocs.shared_folder_url:
+            self.tg_bot.notify_admin_folder_ready(folder, self.nextcloud_ocs.shared_folder_url)
 
     def add_to_index_queue(self, path):
         if path not in self.index_queue:

@@ -1,10 +1,13 @@
 import telebot
 
 from os import environ
+from dotenv import load_dotenv
 
 
 class TelegramBot:
-    bot = telebot.TeleBot(token=environ.get('BOT_TOKEN'))
+    load_dotenv()
+    token = environ.get("BOT_TOKEN")
+    bot = telebot.TeleBot(token)
     chat_id = environ.get('REFLECT_GROUP_CHAT_ID')
 
     def notify_admin_folder_ready(self, folder, download_url):
