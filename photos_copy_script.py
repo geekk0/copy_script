@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import sys
 import time
-import asyncio
 import json
 import pwd
 import grp
@@ -12,6 +11,7 @@ from datetime import datetime
 from configparser import ConfigParser
 from nextcloud_ocs import NextcloudOCS
 from tg_bot import TelegramBot
+from yclients_api import YclientsService
 
 import pytz
 import setproctitle
@@ -31,6 +31,8 @@ class FileCopier:
         self.all_files_moved = False
         self.nextcloud_ocs = NextcloudOCS()
         self.tg_bot = TelegramBot()
+        self.yclients_service = YclientsService(config.get("Studio_name"))
+        self.shared_folders = []
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -199,14 +201,14 @@ class FileCopier:
         if not same_hour_range:
             self.all_files_moved = True
 
-    def run_index(self, destination_subdir):
+    def run_index(self, destination_subdir, skip_add_to_indexed=False):
         setproctitle.setproctitle("copy_script_run_index")
 
+        full_dest_subdir = destination_subdir
         destination_subdir = destination_subdir.replace('/cloud', '')
-
         formatted_dest_subdir = self.modify_path_for_index(destination_subdir)
 
-        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir}'
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir} --shallow'
 
         logger.info(f"command: {command}")
 
@@ -221,7 +223,10 @@ class FileCopier:
 
             if process.returncode == 0:
                 logger.info(f"Command executed successfully: {command}")
-                self.already_indexed_folders.append(destination_subdir)
+                if not skip_add_to_indexed:
+                    self.already_indexed_folders.append(full_dest_subdir)
+                if full_dest_subdir in self.index_queue:
+                    self.remove_from_index_queue(full_dest_subdir)
                 self.save_processed_folders()
             else:
                 logger.error(f"Error executing command: {command}, stderr: {process.stderr.decode()}")
@@ -233,13 +238,27 @@ class FileCopier:
 
     def run_index_queue(self, studio_root_path):
         for path in self.index_queue:
+            logger.debug(f'path {path} in already_indexed {self.already_indexed_folders}: '
+                         f'{path in self.already_indexed_folders}')
             if path in self.already_indexed_folders or not self.check_queue_hour_range(path):
                 continue
             self.change_ownership(path)
             self.run_index(path)
-            path_for_share = self.modify_path_for_share_folder(path)
-            self.send_folder_url(path_for_share)
-            self.run_index(studio_root_path)
+            self.run_index(studio_root_path, skip_add_to_indexed=True)
+            try:
+                self.generate_and_store_share_folder_url(path)
+            except Exception as e:
+                logger.error(f'generate_and_store_share_folder_url: {e}')
+
+    def generate_and_store_share_folder_url(self, path):
+        path_for_share = self.modify_path_for_share_folder(path)
+        self.get_folder_url(path_for_share)
+        if self.nextcloud_ocs.shared_folder_url:
+            folder_hour_range = path_for_share.split("/")[-1]
+            self.yclients_service.get_appointed_client_info(
+                folder_hour_range=folder_hour_range)
+            if self.yclients_service.client_info:
+                self.save_shared_folder()
 
     def modify_path_for_index(self, destination_subdir):
         # destination_subdir = destination_subdir.replace('/cloud', '')
@@ -302,7 +321,7 @@ class FileCopier:
             creation_time_stat = result.stdout.strip()
             return float(creation_time_stat)  # Convert to floating-point number
         except subprocess.CalledProcessError as e:
-            print(f"Error executing command: {e}")
+            logger.error(f"Error get_creation_time: {e}")
             return None
 
     @staticmethod
@@ -318,7 +337,7 @@ class FileCopier:
         except Exception as e:
             logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
 
-    def send_folder_url(self, folder):
+    def get_folder_url(self, folder):
         self.nextcloud_ocs.get_token()
         if self.nextcloud_ocs.csrf_token:
             self.nextcloud_ocs.send_request_folder_share(folder)
@@ -331,9 +350,6 @@ class FileCopier:
         if not self.nextcloud_ocs.shared_folder_url:
             logger.error(f'No shared_folder_url received: {self.nextcloud_ocs.error}')
             return
-
-        if self.nextcloud_ocs.csrf_token and self.nextcloud_ocs.shared_folder_url:
-            self.tg_bot.notify_admin_folder_ready(folder, self.nextcloud_ocs.shared_folder_url)
 
     def add_to_index_queue(self, path):
         if path not in self.index_queue:
@@ -387,12 +403,46 @@ class FileCopier:
         with open(f'processed_folders_{config.get("Studio_name")}.json', 'w') as json_file:
             json.dump({}, json_file)
 
+    def save_shared_folder(self):
+
+        filename = f'/cloud/reflect/files/Рассылка/{studio_name}_рассылка.json'
+
+        if os.path.isfile('/cloud/reflect/files/тест_рассылка.json'):
+            self.shared_folders = self.get_shared_folders(filename)
+
+        new_shared_folder = {
+            "client_name": self.yclients_service.client_info['client_name'],
+            "folder_url": self.nextcloud_ocs.shared_folder_url,
+            "client_id": self.yclients_service.client_info['client_id'],
+            "client_phone_number": self.yclients_service.client_info['client_phone_number'],
+            "client_email": self.yclients_service.client_info['client_email']
+
+        }
+
+        self.shared_folders.append(new_shared_folder)
+        self.update_shared_folders_file(filename)
+        self.change_ownership(filename)
+
+    @staticmethod
+    def get_shared_folders(filename):
+        with open(filename, 'r', encoding='utf-8') as file:
+            return json.load(file)['shared_folders']
+
+    def update_shared_folders_file(self, filename):
+        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m.%Y')
+        shared_folders_data = {
+            'date': current_date,
+            'shared_folders': self.shared_folders
+        }
+        with open(filename, 'w', encoding='utf-8') as file:
+            json.dump(shared_folders_data, file)
+
 
 def read_config(config_file):
-    with open(config_file, 'r', encoding='utf-8') as file:
-        config = ConfigParser()
-        config.read_file(file)
-    return config['Settings']
+        with open(config_file, 'r', encoding='utf-8') as file:
+            config = ConfigParser()
+            config.read_file(file)
+        return config['Settings']
 
 
 if __name__ == "__main__":
@@ -406,7 +456,7 @@ if __name__ == "__main__":
     try:
         studio_name = config.get("Studio_name")
     except Exception as e:
-        print(e)
+        logger.error(f'error reading config: {e}')
     log_file_name = config.get("LogFile")
 
     logger.add(log_file_name,
