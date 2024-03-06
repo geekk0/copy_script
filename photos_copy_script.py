@@ -64,7 +64,6 @@ class FileCopier:
             current_date,
             hour_range
         )
-        logger.info(f'base_path for {self.config["Studio_name"]}: {base_path}')
         return base_path
 
     def move_file(self, source_file, destination_path):
@@ -96,10 +95,6 @@ class FileCopier:
                 '%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
-            logger.info(f"Processing file '{source_file}'")
-            logger.info(f"Creation date: {creation_date}")
-            logger.info(f"Current date: {current_date}")
-
             if creation_date != current_date:
                 continue
 
@@ -113,7 +108,6 @@ class FileCopier:
                     self.file_destination_hour_range = self.get_hour_range_from_creation_time(source_file)
 
                     if not self.file_destination_hour_range:
-                        logger.warning(f"Skipped file '{filename}' due to invalid creation time.")
                         continue
 
                     current_month, current_date = self.get_current_month_and_date()
@@ -127,28 +121,26 @@ class FileCopier:
                     self.destination_path = None
                     self.moved_file_path = None
                     self.file_destination_hour_range = None
-                    logger.warning(f"File '{filename}' is still being written. Skipping.")
 
             except Exception as error_msg:
                 logger.error(f"can't get file size for file '{filename}': {error_msg}")
                 continue
 
     def run(self):
+        studio_root_path = self.config["BaseDirPath"]
+        root_path_message = f'studio root path: {studio_root_path}'
+
+        if not os.path.exists(studio_root_path):
+            root_path_message = f'{root_path_message} does_not_exist'
+            logger.info(root_path_message)
+            return
+
+        logger.info(root_path_message)
+
         while True:
             self.update_processed_folders()
 
-            studio_root_path = self.config["BaseDirPath"]
-
-            logger.info(f'studio root path: {studio_root_path}')
-
-            if not self.check_folder_exists_os_path(studio_root_path):
-                logger.info(f'studio root path {studio_root_path} does_not_exist')
-                time.sleep(int(self.config["IterationSleepTime"]))
-                continue
-
             self.process_files(studio_root_path)
-
-            logger.info(f'self.destination_path: {self.destination_path}')
 
             if self.destination_path:
                 self.check_if_all_files_moved(studio_root_path)
@@ -162,9 +154,7 @@ class FileCopier:
 
     def check_folder_exists_console(self, path):
         command = f"ls {path}"
-        logger.info(f'command: {command}')
         exit_status = os.system(command)
-        logger.info(f'exit_status: {exit_status}')
         if exit_status == 0:
             return True
         else:
@@ -175,28 +165,20 @@ class FileCopier:
             return True
 
     def check_if_all_files_moved(self, base_path):
-        logger.info(f'base path: {base_path}')
-        logger.info(f'self.moved_file_path: {self.moved_file_path}, '
-                    f'self.file_destination_hour_range: {self.file_destination_hour_range}')
+
         if not (self.moved_file_path and self.file_destination_hour_range):
-            logger.info(f"no parameters for this file")
             return
         if self.destination_path in self.already_indexed_folders:
-            logger.info(f"{self.destination_path} exists in already_indexed_folders")
             return
 
         source_files = [f for f in os.listdir(base_path) if os.path.isfile(os.path.join(base_path, f))
                         and f.lower().endswith('.jpg')]
-
-        logger.info(f'source_files: {source_files}')
 
         same_hour_range = next((source_file for source_file in source_files if
                               self.get_hour_range_from_creation_time(
                                   os.path.join(base_path, source_file))
                                 == self.file_destination_hour_range),
                              None)
-
-        logger.info(f'same_hour_range: {same_hour_range}')
 
         if not same_hour_range:
             self.all_files_moved = True
@@ -210,8 +192,6 @@ class FileCopier:
 
         command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p {formatted_dest_subdir} --shallow'
 
-        logger.info(f"command: {command}")
-
         try:
             process = subprocess.run(
                 command,
@@ -222,7 +202,6 @@ class FileCopier:
             )
 
             if process.returncode == 0:
-                logger.info(f"Command executed successfully: {command}")
                 if not skip_add_to_indexed:
                     self.already_indexed_folders.append(full_dest_subdir)
                 if full_dest_subdir in self.index_queue:
@@ -238,8 +217,6 @@ class FileCopier:
 
     def run_index_queue(self, studio_root_path):
         for path in self.index_queue:
-            logger.debug(f'path {path} in already_indexed {self.already_indexed_folders}: '
-                         f'{path in self.already_indexed_folders}')
             if path in self.already_indexed_folders or not self.check_queue_hour_range(path):
                 continue
             self.change_ownership(path)
@@ -310,16 +287,24 @@ class FileCopier:
         hour_range = path.split('/')[-1]
         if current_hour_range != hour_range:
             return True
-        else:
-            logger.info('file created this hour')
 
     @staticmethod
     def get_creation_time(file_path):
-        command = ['stat', '-c', '%W', file_path]
         try:
-            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-            creation_time_stat = result.stdout.strip()
-            return float(creation_time_stat)  # Convert to floating-point number
+            mod_command = ['stat', '-c', '%Y', file_path]
+            mod_result = subprocess.run(mod_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                        check=True)
+            modification_time_stat = float(mod_result.stdout.strip())
+
+            create_command = ['stat', '-c', '%W', file_path]
+            create_result = subprocess.run(create_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                           check=True)
+            creation_time_stat = float(create_result.stdout.strip())
+
+            if modification_time_stat < creation_time_stat:
+                return modification_time_stat
+            else:
+                return creation_time_stat
         except subprocess.CalledProcessError as e:
             logger.error(f"Error get_creation_time: {e}")
             return None
@@ -407,7 +392,7 @@ class FileCopier:
 
         filename = f'/cloud/reflect/files/Рассылка/{studio_name}_рассылка.json'
 
-        if os.path.isfile('/cloud/reflect/files/тест_рассылка.json'):
+        if os.path.isfile(filename):
             self.shared_folders = self.get_shared_folders(filename)
 
         new_shared_folder = {
@@ -415,13 +400,15 @@ class FileCopier:
             "folder_url": self.nextcloud_ocs.shared_folder_url,
             "client_id": self.yclients_service.client_info['client_id'],
             "client_phone_number": self.yclients_service.client_info['client_phone_number'],
-            "client_email": self.yclients_service.client_info['client_email']
+            "client_email": self.yclients_service.client_info.get('client_email', "")
 
         }
 
         self.shared_folders.append(new_shared_folder)
         self.update_shared_folders_file(filename)
         self.change_ownership(filename)
+        self.run_index('/cloud/reflect/files/Рассылка/',
+                       skip_add_to_indexed=True)
 
     @staticmethod
     def get_shared_folders(filename):
