@@ -350,12 +350,12 @@ class FileCopier:
         processed_data = self.load_processed_folders()
         process_date = processed_data.get('process_date')
         already_indexed_folders = processed_data.get('already_indexed')
+        index_queue = processed_data.get('index_queue')
 
         if process_date:
-            self.already_indexed_folders = already_indexed_folders
-
             if process_date == current_date:
                 self.already_indexed_folders = already_indexed_folders
+                self.index_queue = index_queue
             else:
                 self.clear_processed_folders()
 

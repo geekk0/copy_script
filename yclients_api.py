@@ -177,8 +177,8 @@ class YclientsService:
 
         messages = {
             'message_1': message_1,
-            'message_2': message_2,
-            'message_3': message_3
+            # 'message_2': message_2,
+            # 'message_3': message_3
         }
 
         for message_name, message_content in messages.items():
@@ -245,8 +245,8 @@ class YclientsService:
                     сертификат - заказать можно <a href="https://o2881.yclients.com/loyalty" 
                     style="color: #bcab08">тут</a><br><br>
         
-                    <div style="width:80%;margin-left: auto;margin-right: auto">
-                        <img src="https://lh3.googleusercontent.com/a-/ALV-UjWbxNB6tT4LpHCYZp20gIFnq8P4I6z86vGyw4sgidhspkw=s40-p">
+                    <div style="width:50%;margin-left: auto;margin-right: auto">
+                        <img style="width:35%" src="https://cloud.reflect-studio.ru/index.php/avatar/reflect/512/dark?v=1">
                     </div>
                 </div>
         
@@ -271,7 +271,6 @@ class YclientsService:
         print(response.status_code)
         print(response.json())
 
-
     def get_clients_list(self):
         url = self.base_url + '/company/' + self.company_id + '/clients/search'
 
@@ -290,9 +289,6 @@ class YclientsService:
         response = requests.post(url, headers=headers, data=json.dumps(body))
 
         print(response.json())
-
-
-# my_id = 216024669
 
 
 if __name__ == '__main__':
