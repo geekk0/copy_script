@@ -6,7 +6,6 @@ import subprocess
 from os import environ
 from dotenv import load_dotenv
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from emoji import emojize
 
 class TelegramBot:
     load_dotenv()
@@ -125,19 +124,22 @@ class TelegramBot:
     def update_message(self, call, text=None, keyboard=None):
         args = f'text = {text}, keyboard = {keyboard}'
         # self.bot.send_message(call.message.chat.id, args)
-        if keyboard and not text:
-            if keyboard != call.message.reply_markup:
-                self.bot.edit_message_reply_markup(message_id=call.message.message_id, chat_id=call.message.chat.id,
-                                                   reply_markup=keyboard)
-        elif keyboard and text:
-            if not (keyboard == call.message.reply_markup and text == call.message.text):
-                self.bot.edit_message_text(message_id=call.message.message_id, chat_id=call.message.chat.id,
-                                           text=text, reply_markup=keyboard)
+        try:
+            if keyboard and not text:
+                if keyboard != call.message.reply_markup:
+                    self.bot.edit_message_reply_markup(message_id=call.message.message_id, chat_id=call.message.chat.id,
+                                                       reply_markup=keyboard)
+            elif keyboard and text:
+                if not (keyboard == call.message.reply_markup and text == call.message.text):
+                    self.bot.edit_message_text(message_id=call.message.message_id, chat_id=call.message.chat.id,
+                                               text=text, reply_markup=keyboard)
 
-        elif text and not keyboard:
-            if text != call.message.text and text != call.data:
-                self.bot.edit_message_text(message_id=call.message.message_id, chat_id=call.message.chat.id,
-                                           text=text, reply_markup=call.message.reply_markup)
+            elif text and not keyboard:
+                if text != call.message.text and text != call.data:
+                    self.bot.edit_message_text(message_id=call.message.message_id, chat_id=call.message.chat.id,
+                                               text=text, reply_markup=call.message.reply_markup)
+        except Exception as e:
+            self.write_to_log(e)
 
     def get_folders_list(self):
         directory_path = self.current_path
