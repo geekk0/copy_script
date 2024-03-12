@@ -6,7 +6,7 @@ import subprocess
 from os import environ
 from dotenv import load_dotenv
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from emoji import emojize
 
 class TelegramBot:
     load_dotenv()
@@ -113,7 +113,7 @@ class TelegramBot:
             keyboard_rows.append(row)
 
         if not no_home_btn:
-            home_button = InlineKeyboardButton(text="Home", callback_data="home_clicked", emoji="\U0001F3E0")
+            home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
             keyboard_rows[-1].append(home_button)
 
         keyboard = InlineKeyboardMarkup()
@@ -146,8 +146,11 @@ class TelegramBot:
         return folders_list
 
     def check_exists_folders_inside(self):
-        if any(os.path.isdir(os.path.join(self.current_path, entry)) for entry in os.listdir(self.current_path)):
-            return True
+        try:
+            if any(os.path.isdir(os.path.join(self.current_path, entry)) for entry in os.listdir(self.current_path)):
+                return True
+        except Exception as e:
+            self.bot.send_message(e)
 
     @staticmethod
     def write_to_log(message):
