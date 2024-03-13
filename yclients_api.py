@@ -291,8 +291,8 @@ class YclientsService:
         print(response.json())
 
 
-if __name__ == '__main__':
-    yclients_client = YclientsService("Силуэт")
-    shared_folder = {'client_id': 216024669, 'client_name': 'OlegL', 'folder_url': 'https://instagram'}
-    #yclients_client.send_whatsapp_folder_notifications_to_client(shared_folder)
-    yclients_client.send_email_folder_notification_to_client(shared_folder)
+# if __name__ == '__main__':
+#     yclients_client = YclientsService("Силуэт")
+#     shared_folder = {'client_id': 216024669, 'client_name': 'OlegL', 'folder_url': 'https://instagram'}
+#     #yclients_client.send_whatsapp_folder_notifications_to_client(shared_folder)
+#     yclients_client.send_email_folder_notification_to_client(shared_folder)

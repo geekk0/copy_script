@@ -45,11 +45,11 @@ class MailingService:
 
     @staticmethod
     def write_to_log(message):
-        with open('/cloud/copy_script/mailer_log.txt', 'a+') as log_file:
+        with open('/cloud/copy_script/mailing.log', 'a+') as log_file:
             log_file.write(str(message) + '\n')
             
 
-if '__name__' == '__main__':
+if __name__ == '__main__':
     mailing = MailingService()
     mailing.run()
     if mailing.error:
