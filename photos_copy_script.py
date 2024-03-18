@@ -98,7 +98,6 @@ class FileCopier:
             if creation_date != current_date:
                 continue
 
-            # Process only files with the allowed extension at the source folder level
             initial_size = os.path.getsize(source_file)
             time.sleep(int(self.config["FileSizeCheckInterval"]))
             try:

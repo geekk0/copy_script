@@ -31,7 +31,7 @@ class TelegramBot:
             self.write_to_log(
                 message=f"""
                     current_chat_id: {message.chat.id},
-                    admin_chat_id: {self.chat.id}
+                    admin_chat_id: {self.chat_id}
                 """
             )
             return
@@ -81,7 +81,7 @@ class TelegramBot:
     def run_index(self):
         sudo_password = environ.get('SUDOP')
         path = self.current_path.replace('/cloud', '')
-        command = f"echo '{sudo_password}' | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
+        command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
         self.current_path = os.path.dirname(self.current_path)
         self.write_to_log(command)
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -91,6 +91,7 @@ class TelegramBot:
             self.write_to_log(output)
             return "Индексация произведена успешно"
         else:
+            self.write_to_log(f'output: {output}, error: {error}')
             return "Ошибка индексации"
 
     @staticmethod
