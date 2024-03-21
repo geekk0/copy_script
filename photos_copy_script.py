@@ -142,7 +142,7 @@ class FileCopier:
         logger.info(root_path_message)
 
         while True:
-            self.update_processed_folders()
+            self.update_processed_folders()  # If outdated also clears the self.shared_folders
 
             self.process_files(studio_root_path)
 
@@ -165,21 +165,19 @@ class FileCopier:
             return False
 
     def check_first_file_timestamp(self, destination_path, source_file):
+
+        delay_time = int(config.get("FirstFileDelayTime")) if config.get("FirstFileDelayTime") else 10
+
         if not os.path.exists(destination_path):
-            # source_file_path = os.path.join(destination_path, source_file)
             source_file_creation_time = self.get_creation_time(source_file)
 
             if not (destination_path in self.first_file_timestamp):
                 self.first_file_timestamp[destination_path] = source_file_creation_time
             else:
                 delta = datetime.now() - datetime.fromtimestamp(source_file_creation_time, self.timezone_moscow)
-                if delta > timedelta(minutes=10):
+                if delta > timedelta(minutes=delay_time):
                     del self.first_file_timestamp[destination_path]
                     return True
-                else:
-                    logger.debug(f'too early to move file.\n'
-                                 f'  {destination_path}')
-
 
     def check_folder_exists_os_path(self, path):
         if os.path.exists(path):
@@ -378,6 +376,7 @@ class FileCopier:
                 self.already_indexed_folders = already_indexed_folders
                 self.index_queue = index_queue
             else:
+                self.shared_folders = []
                 self.clear_processed_folders()
 
     def load_processed_folders(self):
