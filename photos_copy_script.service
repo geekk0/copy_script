@@ -1,0 +1,14 @@
+[Unit]
+Description=This service manage copy script
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/cloud/copy_script
+ExecStart=/bin/bash /cloud/copy_script/photos_copy_script_launcher.sh
+ExecStop=/bin/bash /cloud/copy_script/stop_script.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
