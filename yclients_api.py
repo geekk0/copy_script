@@ -10,7 +10,6 @@ from datetime import datetime
 
 
 class YclientsService:
-
     base_url = 'https://api.yclients.com/api/v1'
 
     def __init__(self, studio_name):
@@ -88,8 +87,6 @@ class YclientsService:
 
         response = requests.get(url, headers=headers)
 
-        print(response.json())
-
     def get_companies_group(self):
         url = self.base_url + '/groups'
 
@@ -101,8 +98,6 @@ class YclientsService:
 
         response = requests.get(url, headers=headers)
 
-        print(response.json())
-
     def get_staff_list(self):
         url = self.base_url + '/company/' + self.company_id + '/staff'
 
@@ -113,8 +108,6 @@ class YclientsService:
         }
 
         response = requests.get(url, headers=headers)
-
-        print(response.json())
 
     @staticmethod
     def get_point_timestamps_from_date(folder_hour_range):
@@ -185,7 +178,7 @@ class YclientsService:
             try:
                 result = self.send_whatsapp_message(message_content, client_id)
             except Exception as e:
-                print(e)
+                self.error = e
             time.sleep(20)
 
     def send_whatsapp_message(self, message, client_id):
@@ -205,14 +198,11 @@ class YclientsService:
 
         response = requests.post(url, headers=headers, data=json.dumps(body))
 
-        print(response.json())
 
         return response.status_code
 
     def send_email_folder_notification_to_client(self, shared_folder_block):
         url = self.base_url + '/email/clients/by_id/' + self.company_id
-
-        print(url)
 
         message = f'''
         <html style="">
@@ -230,28 +220,28 @@ class YclientsService:
                     для скачивания фото с телефона</p>
                     Обращаем ваше внимание, что фотографии будут доступны для скачивания только 7 дней,
                     не забудьте их скачать!<br><br>
-        
+
                     Для того, чтобы сделать близкий портрет, необходимо кадрировать фотографию. 
                     Это можно сделать в самом телефоне или в приложение Picsart или Peachy 📸<br><br>
-        
+
                     Будем рады обратной связи и вашим отметкам в социальных сетях:<br>
                     <a href="https://instagram.com/reflect.foto?igshid=MmIzYWVlNDQ5Yg=="
                     style="color: #bcab08">Instagram</a>
                     <a href="https://yandex.ru/profile/152194276958" 
                     style="color: #bcab08">Яндекс</a>
                     <br><br>
-        
+
                     Если вам понравилось и вы хотите подарить этот опыт своим близким, то у нас есть подарочный 
                     сертификат - заказать можно <a href="https://o2881.yclients.com/loyalty" 
                     style="color: #bcab08">тут</a><br><br>
-        
+
                     <div style="width:50%;margin-left: auto;margin-right: auto">
                         <img style="width:35%" src="https://cloud.reflect-studio.ru/index.php/avatar/reflect/512/dark?v=1">
                     </div>
                 </div>
-        
+
             </div>
-        
+
         </html>
         '''
 
@@ -268,31 +258,23 @@ class YclientsService:
         }
 
         response = requests.post(url, headers=headers, data=json.dumps(body))
-        print(response.status_code)
-        print(response.json())
 
     def get_clients_list(self):
         url = self.base_url + '/company/' + self.company_id + '/clients/search'
 
         headers = {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + self.partner_token + ', User ' + self.user_token,
-                'Accept': 'application/vnd.yclients.v2+json'
-            }
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + self.partner_token + ', User ' + self.user_token,
+            'Accept': 'application/vnd.yclients.v2+json'
+        }
 
         body = {
-                "page": 148,
-                'fields': ["id", "name"],
+            "page": 148,
+            'fields': ["id", "name"],
 
-            }
+        }
 
         response = requests.post(url, headers=headers, data=json.dumps(body))
 
-        print(response.json())
 
 
-# if __name__ == '__main__':
-#     yclients_client = YclientsService("Силуэт")
-#     shared_folder = {'client_id': 216024669, 'client_name': 'OlegL', 'folder_url': 'https://instagram'}
-#     #yclients_client.send_whatsapp_folder_notifications_to_client(shared_folder)
-#     yclients_client.send_email_folder_notification_to_client(shared_folder)

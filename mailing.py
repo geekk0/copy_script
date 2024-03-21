@@ -35,11 +35,13 @@ class MailingService:
     def send_notifications_to_client(self, shared_folder):
         try:
             self.yclients_service.send_email_folder_notification_to_client(shared_folder)
+            self.write_to_log(f'success email: {shared_folder}')
         except Exception as e:
             self.error = f'error sending email: {e}'
         time.sleep(20)
         try:
             self.yclients_service.send_whatsapp_folder_notifications_to_client(shared_folder)
+            self.write_to_log(f'success whatsapp: {shared_folder}')
         except Exception as e:
             self.error = f'error sending whatsapp: {e}'
 
@@ -47,7 +49,7 @@ class MailingService:
     def write_to_log(message):
         with open('/cloud/copy_script/mailing.log', 'a+') as log_file:
             log_file.write(str(message) + '\n')
-            
+
 
 if __name__ == '__main__':
     mailing = MailingService()
