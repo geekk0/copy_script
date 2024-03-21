@@ -7,7 +7,7 @@ import json
 import pwd
 import grp
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from configparser import ConfigParser
 from nextcloud_ocs import NextcloudOCS
 from tg_bot import TelegramBot
@@ -33,6 +33,7 @@ class FileCopier:
         self.tg_bot = TelegramBot()
         self.yclients_service = YclientsService(config.get("Studio_name"))
         self.shared_folders = []
+        self.first_file_timestamp = {}
 
     def get_current_month_and_date(self):
         current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
@@ -114,8 +115,12 @@ class FileCopier:
                                                             current_date,
                                                             self.file_destination_hour_range)
 
-                    self.move_file(source_file, destination_path)
-                    self.destination_path = destination_path
+                    try:
+                        if self.check_first_file_timestamp(destination_path, source_file):
+                            self.move_file(source_file, destination_path)
+                            self.destination_path = destination_path
+                    except Exception as e:
+                        logger.error(e)
                 else:
                     self.destination_path = None
                     self.moved_file_path = None
@@ -158,6 +163,23 @@ class FileCopier:
             return True
         else:
             return False
+
+    def check_first_file_timestamp(self, destination_path, source_file):
+        if not os.path.exists(destination_path):
+            # source_file_path = os.path.join(destination_path, source_file)
+            source_file_creation_time = self.get_creation_time(source_file)
+
+            if not (destination_path in self.first_file_timestamp):
+                self.first_file_timestamp[destination_path] = source_file_creation_time
+            else:
+                delta = datetime.now() - datetime.fromtimestamp(source_file_creation_time, self.timezone_moscow)
+                if delta > timedelta(minutes=10):
+                    del self.first_file_timestamp[destination_path]
+                    return True
+                else:
+                    logger.debug(f'too early to move file.\n'
+                                 f'  {destination_path}')
+
 
     def check_folder_exists_os_path(self, path):
         if os.path.exists(path):
