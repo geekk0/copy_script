@@ -4,6 +4,7 @@ import telebot
 import subprocess
 import pwd
 import grp
+import json
 
 from os import environ
 from dotenv import load_dotenv
@@ -107,6 +108,25 @@ class TelegramBot:
         except Exception as e:
             self.write_to_log(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
 
+    def get_studio_shared_folders(self, call):
+        shared_folder_file = self.selected_studio + "_рассылка.json"
+        if os.path.exists(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file)):
+            try:
+                with open(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file), "r+") as mailing_file:
+                    data = json.load(mailing_file)
+                    mailing_date = data.get('date')
+                    shared_folders = data.get('shared_folders')
+                    keyboard = self.create_keyboard(shared_folders, shared_folders)
+                    self.update_message(call, text=f'Рассылка за {mailing_date}', keyboard=keyboard)
+            except Exception as e:
+                self.write_to_log(f'error reading mailing file: {e}')
+        else:
+            keyboard = InlineKeyboardMarkup()
+            home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
+            keyboard.add(home_button)
+            self.update_message(call, text="Нет файла рассылки", keyboard=keyboard)
+
+
     def show_studio_select(self, call):
         if call.data == "indexing":
             text = "Выберите студию для индексации:"
@@ -126,8 +146,7 @@ class TelegramBot:
             self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
                                 keyboard=folders_keyboard)
         else:
-            keyword = self.create_keyboard(['mock'], ['mock'])
-            self.update_message(call, keyboard=keyword)
+            self.get_studio_shared_folders(call)
 
     def show_next_folder(self, call):
         folders = self.get_folders_list()

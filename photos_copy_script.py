@@ -179,6 +179,8 @@ class FileCopier:
                 if delta > timedelta(minutes=delay_time):
                     del self.first_file_timestamp[destination_path]
                     return True
+        else:
+            return True
 
     def check_folder_exists_os_path(self, path):
         if os.path.exists(path):
