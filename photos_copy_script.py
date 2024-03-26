@@ -171,10 +171,11 @@ class FileCopier:
         if not os.path.exists(destination_path):
             source_file_creation_time = self.get_creation_time(source_file)
 
-            if not (destination_path in self.first_file_timestamp):
+            if destination_path not in self.first_file_timestamp:
                 self.first_file_timestamp[destination_path] = source_file_creation_time
             else:
-                delta = datetime.now() - datetime.fromtimestamp(source_file_creation_time, self.timezone_moscow)
+                current_time = datetime.now().astimezone(self.timezone_moscow)
+                delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.timezone_moscow)
                 if delta > timedelta(minutes=delay_time):
                     del self.first_file_timestamp[destination_path]
                     return True
