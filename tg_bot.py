@@ -2,6 +2,8 @@ import os
 
 import telebot
 import subprocess
+import pwd
+import grp
 
 from os import environ
 from dotenv import load_dotenv
@@ -19,13 +21,14 @@ class TelegramBot:
 
     def __init__(self):
         self.selected_studio = None
-        self.bot.message_handler(func=lambda message: True)(self.handle_message)
         self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback_query)
+        self.bot.message_handler(commands=['start'])(self.handle_start)
 
     def start_polling(self):
         self.bot.polling()
 
-    def handle_message(self, message):
+    def handle_start(self, message, call=None):
+
         if message.chat.id != self.chat_id:
             self.bot.reply_to(message, "Доступ только из группы")
             self.write_to_log(
@@ -36,40 +39,37 @@ class TelegramBot:
             )
             return
         if message.content_type == 'text':
-            keyboard = self.create_keyboard(self.studios, self.studios, no_home_btn=True)
-            self.bot.send_message(self.chat_id, "Индексация, выберите студию:", reply_markup=keyboard)
-        # else:
-        #     self.bot.reply_to(message, "Sorry, I can only handle text messages.")
+            keyboard = self.create_keyboard(['Индексация', 'Рассылка'],
+                                           ['indexing', 'mailing'], no_home_btn=True)
+            if call:
+                self.update_message(call, "Выберите действие:", keyboard)
+            else:
+                self.bot.send_message(message.chat.id, "Выберите действие:", reply_markup=keyboard)
 
     def handle_callback_query(self, call):
+
+        print(call.data)
+
         if call.message.chat.id != self.chat_id:
             return
 
-        if call.data == "home_clicked":
-            keyboard = self.create_keyboard(self.studios, self.studios, no_home_btn=True)
-            self.update_message(call, text='Индексация, выберите студию:', keyboard=keyboard)
+        elif call.data == "home_clicked":
+            self.handle_start(call.message, call)
 
-        elif call.data in self.studios:
-            self.selected_studio = call.data
-            self.current_path = f"{self.base_path}/{self.selected_studio}"
-            folders = self.get_folders_list()
-            folders_keyboard = self.create_keyboard(folders, folders)
-            self.update_message(call, keyboard=folders_keyboard)
+        elif call.data in ["indexing", "mailing"]:
+            self.show_studio_select(call)
+
+        elif ":" in call.data:
+            if call.data.split(":")[1] in self.studios:
+                self.show_studio_folders(call)
 
         else:
             if call.data not in self.current_path:
                 self.current_path += f"/{call.data}"
-            if self.check_exists_folders_inside():
-                folders = self.get_folders_list()
-                folders_keyboard = self.create_keyboard(folders, folders)
-                visible_path = self.current_path.replace('/cloud/reflect/files/', '')
-                self.update_message(call, text=visible_path, keyboard=folders_keyboard)
-
+            if self.check_exists_folders_inside(call.message):
+                self.show_next_folder(call)
             else:
-                visible_path = self.current_path.replace('/cloud/reflect/files/', '')
-                result = self.run_index()
-                result = visible_path + '\n' + result
-                self.update_message(call, text=result)
+                self.call_index(call)
 
     def notify_admin_folder_ready(self, folder, download_url):
         message = f'Папка {folder} доступна для скачивания по ссылке: {download_url}'
@@ -93,6 +93,54 @@ class TelegramBot:
         else:
             self.write_to_log(f'output: {output}, error: {error}')
             return "Ошибка индексации"
+
+    def change_ownership(self, user='www-data', group='www-data'):
+        directory_path = self.current_path
+        try:
+            uid = pwd.getpwnam(user).pw_uid
+            gid = grp.getgrnam(group).gr_gid
+
+            while directory_path != '/':
+                os.chown(directory_path, uid, gid)
+                directory_path = os.path.dirname(directory_path)
+
+        except Exception as e:
+            self.write_to_log(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+
+    def show_studio_select(self, call):
+        if call.data == "indexing":
+            text = "Выберите студию для индексации:"
+            keyboard = self.create_keyboard(self.studios, ["indexing:" + x for x in self.studios])
+        else:
+            text = "Выберите студию для управления рассылкой:"
+            keyboard = self.create_keyboard(self.studios, ["mailing:" + x for x in self.studios])
+        self.update_message(call, text, keyboard)
+
+    def show_studio_folders(self, call):
+
+        self.selected_studio = call.data.split(":")[1]
+        if call.data.split(":")[0] == 'indexing':
+            self.current_path = f"{self.base_path}/{self.selected_studio}"
+            folders = self.get_folders_list()
+            folders_keyboard = self.create_keyboard(folders, folders)
+            self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
+                                keyboard=folders_keyboard)
+        else:
+            keyword = self.create_keyboard(['mock'], ['mock'])
+            self.update_message(call, keyboard=keyword)
+
+    def show_next_folder(self, call):
+        folders = self.get_folders_list()
+        folders_keyboard = self.create_keyboard(folders, folders)
+        visible_path = self.current_path.replace('/cloud/reflect/files/', '')
+        self.update_message(call, text=visible_path, keyboard=folders_keyboard)
+
+    def call_index(self, call):
+        self.change_ownership()
+        visible_path = self.current_path.replace('/cloud/reflect/files/', '')
+        result = self.run_index()
+        result = visible_path + '\n' + result
+        self.update_message(call, text=result)
 
     @staticmethod
     def create_keyboard(button_labels, callback_data, no_home_btn=False):
@@ -148,12 +196,12 @@ class TelegramBot:
                         if os.path.isdir(os.path.join(directory_path, entry))]
         return folders_list
 
-    def check_exists_folders_inside(self):
+    def check_exists_folders_inside(self, message):
         try:
             if any(os.path.isdir(os.path.join(self.current_path, entry)) for entry in os.listdir(self.current_path)):
                 return True
         except Exception as e:
-            self.bot.send_message(e)
+            self.bot.send_message(message.chat.id, str(e))
 
     @staticmethod
     def write_to_log(message):
