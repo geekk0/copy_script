@@ -24,6 +24,8 @@ class TelegramBot:
         self.selected_studio = None
         self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback_query)
         self.bot.message_handler(commands=['start'])(self.handle_start)
+        self.shared_folders = []
+        self.mailing_date = ''
 
     def start_polling(self):
         self.bot.polling()
@@ -60,9 +62,15 @@ class TelegramBot:
         elif call.data in ["indexing", "mailing"]:
             self.show_studio_select(call)
 
-        elif ":" in call.data:
+        elif "mailing:" in call.data or "indexing:" in call.data:
             if call.data.split(":")[1] in self.studios:
                 self.show_studio_folders(call)
+
+        elif 'delete:record' in call.data:
+            self.delete_record(call)
+
+        elif 'record' in call.data:
+            self.handle_record(call)
 
         else:
             if call.data not in self.current_path:
@@ -114,10 +122,14 @@ class TelegramBot:
             try:
                 with open(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file), "r+") as mailing_file:
                     data = json.load(mailing_file)
-                    mailing_date = data.get('date')
-                    shared_folders = data.get('shared_folders')
-                    keyboard = self.create_keyboard(shared_folders, shared_folders)
-                    self.update_message(call, text=f'Рассылка за {mailing_date}', keyboard=keyboard)
+                    self.mailing_date = data.get('date')
+                    self.shared_folders = data.get('shared_folders')
+                    keyboard = self.create_keyboard([x.get('client_name') + '\n' + x.get('client_phone_number')
+                                                     for x in self.shared_folders],
+                                                    ['record' + x.get('client_name') + ' ' +
+                                                     x.get('client_phone_number')
+                                                     for x in self.shared_folders])
+                    self.update_message(call, text=f'Рассылка за {self.mailing_date}', keyboard=keyboard)
             except Exception as e:
                 self.write_to_log(f'error reading mailing file: {e}')
         else:
@@ -125,7 +137,6 @@ class TelegramBot:
             home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
             keyboard.add(home_button)
             self.update_message(call, text="Нет файла рассылки", keyboard=keyboard)
-
 
     def show_studio_select(self, call):
         if call.data == "indexing":
@@ -160,6 +171,50 @@ class TelegramBot:
         result = self.run_index()
         result = visible_path + '\n' + result
         self.update_message(call, text=result)
+
+    def handle_record(self, call):
+        record_name = call.data.replace('record', '')
+        text = f'Удалить {record_name} из рассылки?'
+        keyboard = InlineKeyboardMarkup()
+        delete_button = InlineKeyboardButton(text='Удалить', callback_data=f'delete:{call.data}')
+        home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
+        keyboard.add(delete_button, home_button)
+        self.update_message(call, text=text, keyboard=keyboard)
+
+    def delete_record(self, call):
+        print(f'delete record: {call.data}')
+        phone_number = call.data.split(' ')[1]
+        print(phone_number)
+        self.shared_folders = [folder for folder in self.shared_folders if
+                               folder["client_phone_number"] != phone_number]
+
+        self.save_shared_folders()
+
+        if self.shared_folders:
+            keyboard = self.create_keyboard([x.get('client_name') + '\n' + x.get('client_phone_number')
+                                             for x in self.shared_folders],
+                                            ['record' + x.get('client_name') + ' ' +
+                                             x.get('client_phone_number')
+                                         for x in self.shared_folders])
+        else:
+            keyboard = InlineKeyboardMarkup()
+            home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
+            keyboard.add(home_button)
+        self.update_message(call, text=f'Рассылка за: {self.mailing_date}', keyboard=keyboard)
+
+    def save_shared_folders(self):
+        shared_folder_file = self.selected_studio + "_рассылка.json"
+        try:
+            with open(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file), "w") as mailing_file:
+                data = {
+                    'data': self.mailing_date,
+                    'shared_folders': self.shared_folders
+                }
+
+                json.dump(data, mailing_file, indent=4)
+
+        except Exception as e:
+            self.write_to_log(f'error writing shared folders: {e}')
 
     @staticmethod
     def create_keyboard(button_labels, callback_data, no_home_btn=False):
