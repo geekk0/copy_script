@@ -207,7 +207,7 @@ class TelegramBot:
         try:
             with open(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file), "w") as mailing_file:
                 data = {
-                    'data': self.mailing_date,
+                    'date': self.mailing_date,
                     'shared_folders': self.shared_folders
                 }
 
