@@ -244,6 +244,8 @@ class FileCopier:
             self.change_ownership(path)
             self.run_index(path)
             self.run_index(studio_root_path, skip_add_to_indexed=True)
+            if self.first_file_timestamp:
+                logger.debug(f'first file created: {str(self.first_file_timestamp)}')
             try:
                 self.generate_and_store_share_folder_url(path)
             except Exception as e:
