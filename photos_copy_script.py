@@ -447,7 +447,7 @@ class FileCopier:
             'shared_folders': self.shared_folders
         }
         with open(filename, 'w', encoding='utf-8') as file:
-            json.dump(shared_folders_data, file)
+            json.dump(shared_folders_data, file, indent=4)
 
 
 def read_config(config_file):
