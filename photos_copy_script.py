@@ -382,7 +382,13 @@ class FileCopier:
                 self.index_queue = index_queue
             else:
                 self.shared_folders = []
+                logger.debug(f"self.index_queue: {self.index_queue}")
+                logger.debug(f"self.already_indexed_folders: {self.already_indexed_folders}")
                 self.clear_processed_folders()
+        else:
+            logger.debug(f"no process_date received: {current_date}")
+            logger.debug(f"self.index_queue: {self.index_queue}")
+            logger.debug(f"self.already_indexed_folders: {self.already_indexed_folders}")
 
     def load_processed_folders(self):
         filename = f'processed_folders_{config.get("Studio_name")}.json'
