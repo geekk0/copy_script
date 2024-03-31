@@ -131,7 +131,11 @@ class YclientsService:
         start_datetime = current_datetime.replace(hour=start_hour, minute=0, second=0, microsecond=0)
         searching_datetime_value = start_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-        client_record = [x for x in data if x['date'] == searching_datetime_value]
+        start_datetime_half_hour = current_datetime.replace(hour=start_hour, minute=30, second=0, microsecond=0)
+        searching_datetime_value_half_hour = start_datetime_half_hour.strftime("%Y-%m-%d %H:%M:%S")
+
+        client_record = [x for x in data if x['date'] == searching_datetime_value
+                         or x['date'] == searching_datetime_value_half_hour]
 
         if client_record[0]:
             client_details_data = client_record[0]['client']
