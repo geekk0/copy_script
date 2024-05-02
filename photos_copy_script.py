@@ -31,7 +31,10 @@ class FileCopier:
         self.all_files_moved = False
         self.nextcloud_ocs = NextcloudOCS()
         self.tg_bot = TelegramBot()
-        self.yclients_service = YclientsService(config.get("Studio_name"))
+        try:
+            self.yclients_service = YclientsService(config.get("Studio_name"))
+        except:
+            self.yclients_service = None
         self.shared_folders = []
         self.first_file_timestamp = {}
 
