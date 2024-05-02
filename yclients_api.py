@@ -27,7 +27,7 @@ class YclientsService:
         self.studios_ids = {
             'Портрет(ЗАЛ)': environ.get('PORTRAIT_STUDIO_ID'),
             'Силуэт': environ.get('SILHOUETTE_STUDIO_ID'),
-            'Reflect Studio': environ.get('REFLECT_STUDIO_ID')
+            'Отражение': environ.get('REFLECT_STUDIO_ID')
         }
         self.studio_id = self.studios_ids[self.studio_name]
 
