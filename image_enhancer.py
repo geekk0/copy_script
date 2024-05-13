@@ -95,6 +95,12 @@ class ImageEnhancer:
         command = f'sudo chown -R www-data:www-data "{folder_path}"'
         os.system(command)
 
+    @staticmethod
+    def index_folder(folder_path):
+        path = folder_path.replace('/cloud', '')
+        command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p "{path}" --shallow'
+        os.system(command)
+
     def save_image(self, im, file_path, original_exif):
         base_path, extension = os.path.splitext(file_path)
         new_extension = extension.replace(extension, '_enhanced' + extension)
@@ -132,6 +138,7 @@ class ImageEnhancer:
                 if self.check_folder_not_in_process(folder):
                     self.enhance_folder(folder)
                     self.chown_folder(folder)
+                    self.index_folder(folder)
 
     def get_folders_modified_today(self):
         today = date.today()
