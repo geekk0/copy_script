@@ -145,12 +145,12 @@ class ImageEnhancer:
 
         folders_modified_today = []
         for root, dirs, files in os.walk(self.photos_path):
-            if dirs:  # Check if the dirs list is not empty
-                dir_path = os.path.join(root, dirs[0])
-                folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
-                if (folder_creation_day == today
-                        and re.match(r'^\d{1,2}-\d{1,2}$', dirs[0])):
-                    folders_modified_today.append(dir_path)
+            for dir_name in dirs:
+                if re.match(r'^\d{1,2}-\d{1,2}$', dir_name):
+                    dir_path = os.path.join(root, dir_name)
+                    folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
+                    if folder_creation_day == today:
+                        folders_modified_today.append(dir_path)
 
         return folders_modified_today
 
