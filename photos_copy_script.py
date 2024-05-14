@@ -23,7 +23,7 @@ class FileCopier:
     def __init__(self, config):
         self.destination_path = None
         self.config = config
-        self.timezone_moscow = pytz.timezone('Europe/Moscow')  # Set Moscow timezone
+        self.studio_timezone = pytz.timezone(config.get("TimeZoneName"))
         self.already_indexed_folders = []
         self.index_queue = []
         self.moved_file_path = None
@@ -39,9 +39,9 @@ class FileCopier:
         self.first_file_timestamp = {}
 
     def get_current_month_and_date(self):
-        current_month_ru = datetime.now(self.timezone_moscow).strftime('%B')
+        current_month_ru = datetime.now(self.studio_timezone).strftime('%B')
         current_month = self.translate_month_to_russian(current_month_ru)
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         return current_month, current_date
 
     def translate_month_to_russian(self, month_name):
@@ -95,7 +95,7 @@ class FileCopier:
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
                 continue  # Skip files that don't have the allowed extension
 
-            creation_date = datetime.fromtimestamp(self.get_creation_time(source_file), self.timezone_moscow).strftime(
+            creation_date = datetime.fromtimestamp(self.get_creation_time(source_file), self.studio_timezone).strftime(
                 '%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
@@ -177,8 +177,8 @@ class FileCopier:
             if destination_path not in self.first_file_timestamp:
                 self.first_file_timestamp[destination_path] = source_file_creation_time
             else:
-                current_time = datetime.now().astimezone(self.timezone_moscow)
-                delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.timezone_moscow)
+                current_time = datetime.now().astimezone(self.studio_timezone)
+                delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.studio_timezone)
                 if delta > timedelta(minutes=delay_time):
                     del self.first_file_timestamp[destination_path]
                     return True
@@ -298,7 +298,7 @@ class FileCopier:
     def get_hour_range_from_creation_time(self, file_path):
         try:
             creation_time = self.get_creation_time(file_path)
-            creation_datetime = datetime.fromtimestamp(creation_time, self.timezone_moscow)
+            creation_datetime = datetime.fromtimestamp(creation_time, self.studio_timezone)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
             return hour_range
         except Exception as e:
@@ -306,7 +306,7 @@ class FileCopier:
             return None
 
     def get_current_hour_range(self):
-        current_hour = datetime.now(self.timezone_moscow).hour
+        current_hour = datetime.now(self.studio_timezone).hour
         return f"{current_hour}-{current_hour + 1}"
 
     def check_queue_hour_range(self, path):
@@ -373,7 +373,7 @@ class FileCopier:
         self.save_processed_folders()
 
     def update_processed_folders(self):
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         processed_data = self.load_processed_folders()
         process_date = processed_data.get('process_date')
         already_indexed_folders = processed_data.get('already_indexed')
@@ -406,7 +406,7 @@ class FileCopier:
             return {'process_date': None, 'already_indexed': [], 'index_queue': []}
 
     def save_processed_folders(self):
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
 
         data = {
             'process_date': current_date,
@@ -450,7 +450,7 @@ class FileCopier:
             return json.load(file)['shared_folders']
 
     def update_shared_folders_file(self, filename):
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m.%Y')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m.%Y')
         shared_folders_data = {
             'date': current_date,
             'shared_folders': self.shared_folders
