@@ -91,6 +91,12 @@ class ImageEnhancer:
         self.save_enhanced_folders(folder)
 
     @staticmethod
+    def rename_folder(folder):
+        new_folder = f'{folder}_RS'
+        os.rename(folder, new_folder)
+        return new_folder
+
+    @staticmethod
     def chown_folder(folder_path):
         command = f'sudo chown -R www-data:www-data "{folder_path}"'
         os.system(command)
@@ -134,8 +140,9 @@ class ImageEnhancer:
             if self.check_not_enhanced_yet(folder):
                 if self.check_folder_not_in_process(folder):
                     self.enhance_folder(folder)
-                    self.chown_folder(folder)
-                    self.index_folder(folder)
+                    new_folder = self.rename_folder(folder)
+                    self.chown_folder(new_folder)
+                    self.index_folder(new_folder)
 
     def get_folders_modified_today(self):
         today = date.today()
