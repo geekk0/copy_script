@@ -257,10 +257,13 @@ if __name__ == '__main__':
         for settings_file in studios_settings_files:
             logger.info(f'Processing settings file: {settings_file}')
             settings = read_settings_file(settings_file)
-            image_enhancer = ImageEnhancer(settings)
-            image_enhancer.update_enhanced_folders()
-            image_enhancer.run()
-            time.sleep(10)
+            if settings.get('image_settings'):
+                image_enhancer = ImageEnhancer(settings)
+                image_enhancer.update_enhanced_folders()
+                image_enhancer.run()
+                time.sleep(10)
+            else:
+                logger.info(f'Settings file: {settings_file} does not contain image settings. Skipping...')
 
 
 
