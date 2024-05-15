@@ -9,7 +9,7 @@ from datetime import datetime, date
 from loguru import logger
 
 from PIL import Image, ImageEnhance, ImageOps, ExifTags, ImageFilter
-from configparser import ConfigParser
+from configparser import ConfigParser, NoSectionError
 
 
 class ImageEnhancer:
@@ -242,8 +242,11 @@ def read_settings_file(settings_file):
         config = ConfigParser()
         config.read_file(file)
         path_settings = config['Settings']
-        image_settings = config['ImageEnhancement']
-        return {'path_settings': path_settings, 'image_settings': image_settings}
+        if config.has_section('ImageEnhancement'):
+            image_settings = config['ImageEnhancement']
+            return {'path_settings': path_settings, 'image_settings': image_settings}
+        else:
+            return {'path_settings': path_settings}
 
 
 if __name__ == '__main__':
@@ -263,7 +266,7 @@ if __name__ == '__main__':
                 image_enhancer.run()
                 time.sleep(10)
             else:
-                logger.info(f'Settings file: {settings_file} does not contain image settings. Skipping...')
+                logger.info(f'Config file: {settings_file} does not contain image settings. Skipping...')
 
 
 
