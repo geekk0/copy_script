@@ -1,0 +1,14 @@
+[Unit]
+Description=This service manages images enhacement
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/cloud/copy_script
+Environment="PYTHON_ENV=production"
+ExecStart=/bin/bash /cloud/copy_script/photos_copy_script_launcher.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
