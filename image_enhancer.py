@@ -102,18 +102,15 @@ class ImageEnhancer:
         os.system(command)
 
     def save_image(self, im, file_path, original_exif):
-        base_path, extension = os.path.splitext(file_path)
-        new_extension = extension.replace(extension, '_enhanced' + extension)
-        new_path = base_path + new_extension
         if self.sharp_filter:
             logger.debug("sharp filter enabled")
             im = im.filter(ImageFilter.SHARPEN)
         elif self.blur_filter:
             logger.debug("blur filter enabled")
             im = im.filter(ImageFilter.GaussianBlur(1.3))
-        im.save(new_path, dpi=(300, 300), quality=self.quality, exif=original_exif, subsampling=0)
+        im.save(file_path, dpi=(300, 300), quality=self.quality, exif=original_exif, subsampling=0)
 
-        logger.debug(f'saved file:{new_path}')
+        logger.debug(f'saved file:{file_path}')
 
     @staticmethod
     def print_metadata(image):
