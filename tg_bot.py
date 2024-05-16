@@ -1,3 +1,4 @@
+import configparser
 import os
 
 import telebot
@@ -22,10 +23,13 @@ class TelegramBot:
 
     def __init__(self):
         self.selected_studio = None
+        self.current_config_file = None
         self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback_query)
         self.bot.message_handler(commands=['start'])(self.handle_start)
+        self.bot.message_handler(func=lambda message: message.reply_to_message is not None)(self.handle_reply)
         self.shared_folders = []
         self.mailing_date = ''
+        self.image_section = []
 
     def start_polling(self):
         self.bot.polling()
@@ -42,8 +46,8 @@ class TelegramBot:
             )
             return
         if message.content_type == 'text':
-            keyboard = self.create_keyboard(['Индексация', 'Рассылка'],
-                                           ['indexing', 'mailing'], no_home_btn=True)
+            keyboard = self.create_keyboard(['Индексация', 'Рассылка', 'Обработка'],
+                                           ['indexing', 'mailing', 'enhancement'], no_home_btn=True)
             if call:
                 self.update_message(call, "Выберите действие:", keyboard)
             else:
@@ -51,7 +55,7 @@ class TelegramBot:
 
     def handle_callback_query(self, call):
 
-        print(call.data)
+        keywords = ["mailing:", "indexing:", "enhancement:"]
 
         if call.message.chat.id != self.chat_id:
             return
@@ -59,10 +63,10 @@ class TelegramBot:
         elif call.data == "home_clicked":
             self.handle_start(call.message, call)
 
-        elif call.data in ["indexing", "mailing"]:
+        elif call.data in ["indexing", "mailing", "enhancement"]:
             self.show_studio_select(call)
 
-        elif "mailing:" in call.data or "indexing:" in call.data:
+        elif any(keyword in call.data for keyword in keywords):
             if call.data.split(":")[1] in self.studios:
                 self.show_studio_folders(call)
 
@@ -73,12 +77,41 @@ class TelegramBot:
             self.handle_record(call)
 
         else:
-            if call.data not in self.current_path:
+            if 'image_settings/' in call.data:
+                self.get_new_value_from_user(call)
+
+            elif call.data not in self.current_path:
                 self.current_path += f"/{call.data}"
-            if self.check_exists_folders_inside(call.message):
+            elif self.check_exists_folders_inside(call.message):
                 self.show_next_folder(call)
             else:
                 self.call_index(call)
+
+    def handle_reply(self, message):
+
+        setting = message.reply_to_message.text.split(':')[0].split(' ')[2]
+        value = message.text
+
+        if 'filter' in setting:
+            if value.lower() == 'true' or value.lower() == 'false':
+                self.write_settings_file(setting, value)
+                self.image_section[setting] = value
+                text = f"Значение {setting}: {value} установлено"
+            else:
+                text = "Новое значение должно быть True или False"
+
+        else:
+            try:
+                float(value)
+                self.write_settings_file(setting, value)
+                self.image_section[setting] = value
+                text = f"Значение {setting}: {value} установлено"
+
+            except ValueError:
+                text = "Новое значение должно быть числом"
+
+        keyboard = self.show_section_settings(self.image_section)
+        self.bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
     def notify_admin_folder_ready(self, folder, download_url):
         message = f'Папка {folder} доступна для скачивания по ссылке: {download_url}'
@@ -138,13 +171,74 @@ class TelegramBot:
             keyboard.add(home_button)
             self.update_message(call, text="Нет файла рассылки", keyboard=keyboard)
 
+    def get_studio_image_settings(self, call=None):
+
+        studio_configs = {'Отражение': 'reflect_config.ini',
+                          'Портрет(ЗАЛ)': 'portrait_config.ini',
+                          'Силуэт': 'silhouette_config.ini'}
+
+        studio_config_file_path = (os.path.join(f'/cloud/copy_script',
+                                                studio_configs[self.selected_studio]))
+
+        if os.path.exists(studio_config_file_path):
+
+            self.current_config_file = studio_config_file_path
+
+            settings = self.read_settings_file(studio_config_file_path)
+
+            self.image_section = settings.get('image_settings')
+
+            self.show_section_settings(self.image_section, call)
+
+    @staticmethod
+    def read_settings_file(settings_file):
+        with open(settings_file, 'r', encoding='utf-8') as file:
+            config = configparser.ConfigParser()
+            config.read_file(file)
+            path_settings = config['Settings']
+            if config.has_section('ImageEnhancement'):
+                image_settings = config['ImageEnhancement']
+                return {'path_settings': path_settings, 'image_settings': image_settings}
+            else:
+                return {'path_settings': path_settings}
+
+    def write_settings_file(self, key, value):
+        config = configparser.ConfigParser()
+        config.read(self.current_config_file)
+        config.set('ImageEnhancement', key, value)
+
+        with open(self.current_config_file, 'w', encoding='utf-8') as file:
+            config.write(file)
+
+    def show_section_settings(self, section, call=None):
+        section_settings_keys = []
+        section_settings_items = []
+        if section:
+            for key in section:
+                section_settings_keys.append(key)
+                section_settings_items.append(f"image_settings/{key}: {section[key]}")
+            keyboard = self.create_keyboard(section_settings_keys, section_settings_items)
+
+            if call:
+                self.update_message(call, text=f"Настройки изображений ({self.selected_studio}):",
+                                    keyboard=keyboard)
+            else:
+                return keyboard
+        else:
+            self.update_message(call, text=f'Настройки обработки изображений'
+                                           f'для студии "{self.selected_studio}" отсутствуют',
+                                keyboard=call.message.reply_markup)
+
     def show_studio_select(self, call):
         if call.data == "indexing":
             text = "Выберите студию для индексации:"
             keyboard = self.create_keyboard(self.studios, ["indexing:" + x for x in self.studios])
-        else:
+        elif call.data == "mailing":
             text = "Выберите студию для управления рассылкой:"
             keyboard = self.create_keyboard(self.studios, ["mailing:" + x for x in self.studios])
+        elif call.data == "enhancement":
+            text = "Выберите студию для изменения настроек обработки:"
+            keyboard = self.create_keyboard(self.studios, ["enhancement:" + x for x in self.studios])
         self.update_message(call, text, keyboard)
 
     def show_studio_folders(self, call):
@@ -156,14 +250,25 @@ class TelegramBot:
             folders_keyboard = self.create_keyboard(folders, folders)
             self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
                                 keyboard=folders_keyboard)
-        else:
+        elif call.data.split(":")[0] == 'mailing':
             self.get_studio_shared_folders(call)
+        elif call.data.split(":")[0] == 'enhancement':
+            self.get_studio_image_settings(call)
 
     def show_next_folder(self, call):
         folders = self.get_folders_list()
         folders_keyboard = self.create_keyboard(folders, folders)
         visible_path = self.current_path.replace('/cloud/reflect/files/', '')
         self.update_message(call, text=visible_path, keyboard=folders_keyboard)
+
+    def get_new_value_from_user(self, call):
+        keyboard = InlineKeyboardMarkup()
+        home_button = InlineKeyboardButton(text="🏠", callback_data="home_clicked")
+        keyboard.add(home_button)
+        self.update_message(call, text=f'Текущее значение '
+                                       f'{call.data.replace("image_settings/", "")} \n'
+                                       f'Чтобы его изменить ответьте на это сообщение с новым значением',
+                            keyboard=keyboard)
 
     def call_index(self, call):
         self.change_ownership()
@@ -182,9 +287,7 @@ class TelegramBot:
         self.update_message(call, text=text, keyboard=keyboard)
 
     def delete_record(self, call):
-        print(f'delete record: {call.data}')
         phone_number = call.data.split(' ')[1]
-        print(phone_number)
         self.shared_folders = [folder for folder in self.shared_folders if
                                folder["client_phone_number"] != phone_number]
 
