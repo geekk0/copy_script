@@ -34,15 +34,15 @@ class ImageEnhancer:
 
         enhancer = ImageEnhance.Sharpness(im)
         im = enhancer.enhance(self.sharpness)
-        if not black_white:
+        if black_white:
+            enhancer = ImageEnhance.Brightness(im)
+            im = enhancer.enhance(self.bw_brightness_value)
+        else:
             enhancer = ImageEnhance.Color(im)
             im = enhancer.enhance(self.color_saturation_value)
             enhancer = ImageEnhance.Brightness(im)
             im = enhancer.enhance(self.brightness_value)
-        else:
-            enhancer = ImageEnhance.Brightness(im)
-            im = enhancer.enhance(self.bw_brightness_value)
-            print("bw brightness: ", self.bw_brightness_value)
+
         enhancer = ImageEnhance.Contrast(im)
         im = enhancer.enhance(self.contrast_value)
 
@@ -82,6 +82,8 @@ class ImageEnhancer:
 
     def enhance_folder(self, folder):
         logger.debug(f'enhance folder: {folder}')
+        new_folder = folder + '_RS'
+        os.mkdir(new_folder)
         for item in os.listdir(folder):
             item_path = os.path.join(folder, item)
             if os.path.isfile(item_path):
@@ -91,12 +93,14 @@ class ImageEnhancer:
                     original_exif = image.info.get('exif', b'')
                     logger.debug(f'enhancing file: {item_path}')
 
-                    if not self.is_black_white(image):
+                    black_white = self.is_black_white(image)
+                    if not black_white:
                         image = self.adjust_image_temperature(image)
-                    enhanced_image_content = self.enhance_image(image, black_white=True)
-                    self.save_image(enhanced_image_content, item_path, original_exif)
+                    enhanced_image_content = self.enhance_image(image, black_white=black_white)
+                    self.save_image(enhanced_image_content, item_path.replace(folder, new_folder), original_exif)
 
         self.save_enhanced_folders(folder)
+        return new_folder
 
     @staticmethod
     def rename_folder(folder):
@@ -147,8 +151,8 @@ class ImageEnhancer:
         for folder in today_folders:
             if self.check_not_enhanced_yet(folder):
                 if self.check_folder_not_in_process(folder):
-                    self.enhance_folder(folder)
-                    new_folder = self.rename_folder(folder)
+                    new_folder = self.enhance_folder(folder)
+                    # new_folder = self.rename_folder(folder)
                     self.chown_folder(new_folder)
                     self.index_folder(new_folder)
 
@@ -204,7 +208,6 @@ class ImageEnhancer:
         already_indexed_list = []
         for filename in os.listdir(current_directory):
             if filename.startswith("processed_folders_"):
-                print(filename)
                 with open(os.path.join(current_directory, filename), 'r') as file:
                     data = json.load(file)
                     already_indexed_list.extend(data.get('already_indexed', []))
