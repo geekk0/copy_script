@@ -19,21 +19,30 @@ class ImageEnhancer:
         self.files_extension = settings['path_settings']['FileExtension']
         self.contrast_value = float(settings['image_settings']['Contrast'])
         self.brightness_value = float(settings['image_settings']['Brightness'])
+        self.bw_brightness_value = float(settings['image_settings']['BW_brightness'])
         self.color_saturation_value = float(settings['image_settings']['ColorSaturation'])
         self.sharpness = float(settings['image_settings']['Sharpness'])
         self.temperature = float(settings['image_settings']['Temperature'])
         self.sharp_filter = settings['image_settings'].getboolean('SharpFilter')
         self.blur_filter = settings['image_settings'].getboolean('BlurFilter')
         self.quality = int(settings['image_settings']['Quality'])
-        self.timezone_moscow = pytz.timezone('Europe/Moscow')
+        self.studio_timezone = pytz.timezone(settings['path_settings']['TimeZoneName'])
 
-    def enhance_image(self, im):
+    def enhance_image(self, im, black_white=None):
+        if im.mode != 'RGB':
+            im = im.convert('RGB')
+
         enhancer = ImageEnhance.Sharpness(im)
         im = enhancer.enhance(self.sharpness)
-        enhancer = ImageEnhance.Color(im)
-        im = enhancer.enhance(self.color_saturation_value)
-        enhancer = ImageEnhance.Brightness(im)
-        im = enhancer.enhance(self.brightness_value)
+        if not black_white:
+            enhancer = ImageEnhance.Color(im)
+            im = enhancer.enhance(self.color_saturation_value)
+            enhancer = ImageEnhance.Brightness(im)
+            im = enhancer.enhance(self.brightness_value)
+        else:
+            enhancer = ImageEnhance.Brightness(im)
+            im = enhancer.enhance(self.bw_brightness_value)
+            print("bw brightness: ", self.bw_brightness_value)
         enhancer = ImageEnhance.Contrast(im)
         im = enhancer.enhance(self.contrast_value)
 
@@ -62,14 +71,14 @@ class ImageEnhancer:
         return tinted_image
 
     @staticmethod
-    def is_not_black_white(image):
+    def is_black_white(image):
 
         if image.mode != 'RGB':
             image = image.convert('RGB')
 
         colors = set(image.getdata())
 
-        return False if len(colors) < 600 else True
+        return True if len(colors) < 600 else False
 
     def enhance_folder(self, folder):
         logger.debug(f'enhance folder: {folder}')
@@ -80,14 +89,13 @@ class ImageEnhancer:
                     image = Image.open(f)
 
                     original_exif = image.info.get('exif', b'')
+                    logger.debug(f'enhancing file: {item_path}')
 
-                    if self.is_not_black_white(image):
-                        logger.debug(f'enhancing file: {item_path}')
-                        adjusted_image_temp_content = self.adjust_image_temperature(image)
-                        enhanced_image_content = self.enhance_image(adjusted_image_temp_content)
-                        self.save_image(enhanced_image_content, item_path, original_exif)
-                    else:
-                        logger.debug(f'black-white: {item_path}')
+                    if not self.is_black_white(image):
+                        image = self.adjust_image_temperature(image)
+                    enhanced_image_content = self.enhance_image(image, black_white=True)
+                    self.save_image(enhanced_image_content, item_path, original_exif)
+
         self.save_enhanced_folders(folder)
 
     @staticmethod
@@ -185,16 +193,25 @@ class ImageEnhancer:
             return True
         return folder not in self.load_enhanced_folders().get('enhanced_folders')
 
-    @staticmethod
-    def check_folder_not_in_process(folder):
-        num_files_1 = sum([len(files) for root, dirs, files in os.walk(folder)])
-        time.sleep(5)
-        num_files_2 = sum([len(files) for root, dirs, files in os.walk(folder)])
-        if num_files_2 == num_files_1:
+    def check_folder_not_in_process(self, folder):
+        already_indexed_list = self.gather_already_indexed()
+        if folder in already_indexed_list:
             return True
 
+    @staticmethod
+    def gather_already_indexed():
+        current_directory = os.getcwd()
+        already_indexed_list = []
+        for filename in os.listdir(current_directory):
+            if filename.startswith("processed_folders_"):
+                print(filename)
+                with open(os.path.join(current_directory, filename), 'r') as file:
+                    data = json.load(file)
+                    already_indexed_list.extend(data.get('already_indexed', []))
+        return already_indexed_list
+
     def update_enhanced_folders(self):
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         processed_data = self.load_enhanced_folders()
         process_date = processed_data.get('date')
 
@@ -217,7 +234,7 @@ class ImageEnhancer:
             return default_values
 
     def save_enhanced_folders(self, enhanced_folder):
-        current_date = datetime.now(self.timezone_moscow).strftime('%d.%m')
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         enhanced_folders = self.load_enhanced_folders().get('enhanced_folders') or []
         enhanced_folders.append(enhanced_folder)
 
