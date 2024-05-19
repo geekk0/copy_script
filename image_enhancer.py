@@ -1,6 +1,8 @@
 import os
 import re
 import subprocess
+import multiprocessing
+import setproctitle
 import time
 
 import pytz
@@ -10,7 +12,7 @@ from loguru import logger
 
 from PIL import Image, ImageEnhance, ImageOps, ExifTags, ImageFilter
 from configparser import ConfigParser, NoSectionError
-
+from lockfile import write_to_log, write_to_common_file
 
 class ImageEnhancer:
     def __init__(self, settings):
@@ -201,6 +203,10 @@ class ImageEnhancer:
         already_indexed_list = self.gather_already_indexed()
         if folder in already_indexed_list:
             return True
+        else:
+            write_to_log(f'folder: {folder} is not indexed yet',
+                         "image_enhancer.log",
+                         level="DEBUG", logger=logger)
 
     @staticmethod
     def gather_already_indexed():
@@ -246,13 +252,15 @@ class ImageEnhancer:
             'enhanced_folders': list(enhanced_folders),
         }
 
-        with open('enhanced_folders.json', 'w') as file:
-            json.dump(data, file)
+        # with open('enhanced_folders.json', 'w') as file:
+        #     json.dump(data, file)
+        write_to_common_file(data, 'enhanced_folders.json')
 
     @staticmethod
     def clear_enhanced_folders():
-        with open('enhanced_folders.json', 'w') as json_file:
-            json.dump({}, json_file)
+        write_to_common_file({}, 'enhanced_folders.json')
+        # with open('enhanced_folders.json', 'w') as json_file:
+        #     json.dump({}, json_file)
 
 
 def get_settings_files():
@@ -273,24 +281,40 @@ def read_settings_file(settings_file):
             return {'path_settings': path_settings}
 
 
+def run_image_enhancer(studio_settings_file: str):
+    while True:
+        studio_settings = read_settings_file(studio_settings_file)
+        path_settings = studio_settings.get('path_settings')
+        studio_name = path_settings.get('studio_name')
+        write_to_log(f"Starting {studio_name} image enhancer",
+                     "image_enhancer.log",
+                     level="INFO", logger=logger)
+        image_enhancer = ImageEnhancer(studio_settings)
+        image_enhancer.update_enhanced_folders()
+        process_name = f"{studio_name}_image_enhancer"
+        setproctitle.setproctitle(process_name)
+        image_enhancer.run()
+        time.sleep(15)
+
+
 if __name__ == '__main__':
     logger.add("image_enhancer.log",
                format="{time} {level} {message}",
                rotation="1 MB",
                compression='zip',
-               level="INFO")
+               level="DEBUG")
+    studios_as_args = []
     studios_settings_files = get_settings_files()
-    while True:
-        for settings_file in studios_settings_files:
-            logger.info(f'Processing settings file: {settings_file}')
-            settings = read_settings_file(settings_file)
-            if settings.get('image_settings'):
-                image_enhancer = ImageEnhancer(settings)
-                image_enhancer.update_enhanced_folders()
-                image_enhancer.run()
-                time.sleep(10)
-            else:
-                logger.info(f'Config file: {settings_file} does not contain image settings. Skipping...')
+    for settings_file in studios_settings_files:
+        settings = read_settings_file(settings_file)
+        if settings.get('image_settings'):
+            studios_as_args.append(settings_file)
+    with multiprocessing.Pool() as pool:
+        pool.starmap(run_image_enhancer, [(arg,) for arg in studios_as_args])
+
+
+
+
 
 
 
