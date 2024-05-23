@@ -22,6 +22,7 @@ class ImageEnhancer:
         self.contrast_value = float(settings['image_settings']['Contrast'])
         self.brightness_value = float(settings['image_settings']['Brightness'])
         self.bw_brightness_value = float(settings['image_settings']['BW_brightness'])
+        self.bw_contrast_value = float(settings['image_settings']['BW_contrast'])
         self.color_saturation_value = float(settings['image_settings']['ColorSaturation'])
         self.sharpness = float(settings['image_settings']['Sharpness'])
         self.temperature = float(settings['image_settings']['Temperature'])
@@ -39,14 +40,15 @@ class ImageEnhancer:
         if black_white:
             enhancer = ImageEnhance.Brightness(im)
             im = enhancer.enhance(self.bw_brightness_value)
+            enhancer = ImageEnhance.Contrast(im)
+            im = enhancer.enhance(self.bw_contrast_value)
         else:
             enhancer = ImageEnhance.Color(im)
             im = enhancer.enhance(self.color_saturation_value)
             enhancer = ImageEnhance.Brightness(im)
             im = enhancer.enhance(self.brightness_value)
-
-        enhancer = ImageEnhance.Contrast(im)
-        im = enhancer.enhance(self.contrast_value)
+            enhancer = ImageEnhance.Contrast(im)
+            im = enhancer.enhance(self.contrast_value)
 
         return im
 
