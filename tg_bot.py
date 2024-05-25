@@ -16,7 +16,7 @@ class TelegramBot:
     token = environ.get("BOT_TOKEN")
     bot = telebot.TeleBot(token)
     chat_id = int(environ.get('REFLECT_GROUP_CHAT_ID'))
-    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение', 'KZ']
+    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение', 'Reflect KZ']
     current_level_folders = []
     base_path = '/cloud/reflect/files'
     current_path = ''
@@ -176,7 +176,7 @@ class TelegramBot:
         studio_configs = {'Отражение': 'reflect_config.ini',
                           'Портрет(ЗАЛ)': 'portrait_config.ini',
                           'Силуэт': 'silhouette_config.ini',
-                          'KZ': 'kz_config.ini'}
+                          'Reflect KZ': 'kz_config.ini'}
 
         studio_config_file_path = (os.path.join(f'/cloud/copy_script',
                                                 studio_configs[self.selected_studio]))
