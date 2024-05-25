@@ -175,7 +175,8 @@ class TelegramBot:
 
         studio_configs = {'Отражение': 'reflect_config.ini',
                           'Портрет(ЗАЛ)': 'portrait_config.ini',
-                          'Силуэт': 'silhouette_config.ini'}
+                          'Силуэт': 'silhouette_config.ini',
+                          'KZ': 'kz_config.ini'}
 
         studio_config_file_path = (os.path.join(f'/cloud/copy_script',
                                                 studio_configs[self.selected_studio]))
