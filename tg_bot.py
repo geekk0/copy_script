@@ -16,7 +16,7 @@ class TelegramBot:
     token = environ.get("BOT_TOKEN")
     bot = telebot.TeleBot(token)
     chat_id = int(environ.get('REFLECT_GROUP_CHAT_ID'))
-    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение']
+    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение', 'KZ']
     current_level_folders = []
     base_path = '/cloud/reflect/files'
     current_path = ''
