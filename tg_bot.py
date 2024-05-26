@@ -122,16 +122,20 @@ class TelegramBot:
 
     def run_index(self):
         sudo_password = environ.get('SUDOP')
+        full_path = self.current_path
         path = self.current_path.replace('/cloud', '')
         command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
         self.current_path = os.path.dirname(self.current_path)
         self.write_to_log(command)
+
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
         if process.returncode == 0:
             self.write_to_log(output)
+            self.update_processed_folders(full_path)
             return "Индексация произведена успешно"
+
         else:
             self.write_to_log(f'output: {output}, error: {error}')
             return "Ошибка индексации"
@@ -148,6 +152,28 @@ class TelegramBot:
 
         except Exception as e:
             self.write_to_log(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+
+    def update_processed_folders(self, full_path):
+        processed_folders_file_path = (os.path.join(f'/cloud/copy_script',
+                                                    f'processed_folders_{self.selected_studio}.json'))
+        try:
+            with open(processed_folders_file_path, "r+") as processed_folders_file:
+                processed_data = json.load(processed_folders_file)
+                processed_folders = processed_data.get('already_indexed', [])
+
+                if self.current_path not in processed_folders:
+                    processed_folders.append(full_path)
+                    processed_data['already_indexed'] = processed_folders
+
+                    processed_folders_file.seek(0)
+                    json.dump(processed_data, processed_folders_file)
+                    processed_folders_file.truncate()
+
+        except json.decoder.JSONDecodeError as e:
+            self.write_to_log(f"Error decoding JSON: {e}")
+        except Exception as e:
+            self.write_to_log(f"Error loading processed folders: {e}")
+
 
     def get_studio_shared_folders(self, call):
         shared_folder_file = self.selected_studio + "_рассылка.json"
@@ -171,8 +197,7 @@ class TelegramBot:
             keyboard.add(home_button)
             self.update_message(call, text="Нет файла рассылки", keyboard=keyboard)
 
-    def get_studio_image_settings(self, call=None):
-
+    def get_studio_config_file(self):
         studio_configs = {'Отражение': 'reflect_config.ini',
                           'Портрет(ЗАЛ)': 'portrait_config.ini',
                           'Силуэт': 'silhouette_config.ini',
@@ -180,6 +205,15 @@ class TelegramBot:
 
         studio_config_file_path = (os.path.join(f'/cloud/copy_script',
                                                 studio_configs[self.selected_studio]))
+
+        if os.path.exists(studio_config_file_path):
+            return studio_config_file_path
+        else:
+            self.write_to_log(f'config file not found: {studio_config_file_path}')
+
+    def get_studio_image_settings(self, call=None):
+
+        studio_config_file_path = self.get_studio_config_file()
 
         if os.path.exists(studio_config_file_path):
 
