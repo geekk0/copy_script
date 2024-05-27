@@ -6,6 +6,7 @@ import subprocess
 import pwd
 import grp
 import json
+import time
 
 from os import environ
 from dotenv import load_dotenv
@@ -174,7 +175,6 @@ class TelegramBot:
         except Exception as e:
             self.write_to_log(f"Error loading processed folders: {e}")
 
-
     def get_studio_shared_folders(self, call):
         shared_folder_file = self.selected_studio + "_рассылка.json"
         if os.path.exists(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file)):
@@ -308,9 +308,27 @@ class TelegramBot:
     def call_index(self, call):
         self.change_ownership()
         visible_path = self.current_path.replace('/cloud/reflect/files/', '')
-        result = self.run_index()
-        result = visible_path + '\n' + result
-        self.update_message(call, text=result)
+        self.update_message(call, text="Проверка индексации папки...")
+        if self.check_ready_for_index():
+            result = self.run_index()
+            result = visible_path + '\n' + result
+            self.update_message(call, text=result)
+        else:
+            self.update_message(call, text="Папка недоступна для индексации")
+
+    def check_ready_for_index(self):
+        initial_count = self.count_files_in_folder(self.current_path)
+        time.sleep(5)
+        final_count = self.count_files_in_folder(self.current_path)
+        if final_count == initial_count:
+            return True
+
+    @staticmethod
+    def count_files_in_folder(folder_path):
+        count = 0
+        for root, dirs, files in os.walk(folder_path):
+            count += len(files)
+        return count
 
     def handle_record(self, call):
         record_name = call.data.replace('record', '')
