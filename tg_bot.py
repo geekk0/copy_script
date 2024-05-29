@@ -176,6 +176,7 @@ class TelegramBot:
             self.write_to_log(f"Error loading processed folders: {e}")
 
     def get_studio_shared_folders(self, call):
+
         shared_folder_file = self.selected_studio + "_рассылка.json"
         if os.path.exists(os.path.join('/cloud/reflect/files/Рассылка', shared_folder_file)):
             try:
@@ -281,8 +282,10 @@ class TelegramBot:
         self.selected_studio = call.data.split(":")[1]
         if call.data.split(":")[0] == 'indexing':
             self.current_path = f"{self.base_path}/{self.selected_studio}"
+
             folders = self.get_folders_list()
             folders_keyboard = self.create_keyboard(folders, folders)
+
             self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
                                 keyboard=folders_keyboard)
         elif call.data.split(":")[0] == 'mailing':
@@ -401,6 +404,9 @@ class TelegramBot:
         return keyboard
 
     def update_message(self, call, text=None, keyboard=None):
+
+        start_time = time.time()
+
         args = f'text = {text}, keyboard = {keyboard}'
         # self.bot.send_message(call.message.chat.id, args)
         try:
@@ -420,10 +426,16 @@ class TelegramBot:
         except Exception as e:
             self.write_to_log(e)
 
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"'update_message' execution time: {execution_time} seconds")
+
     def get_folders_list(self):
+
         directory_path = self.current_path
         folders_list = [entry for entry in os.listdir(directory_path)
                         if os.path.isdir(os.path.join(directory_path, entry))]
+
         return folders_list
 
     def check_exists_folders_inside(self, message):
