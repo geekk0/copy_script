@@ -10,8 +10,7 @@ folder_path = folder_path.encode('utf-8').decode('utf-8', errors='ignore')
 settings_file_path = os.path.join('/cloud/copy_script', settings_file)
 
 enhancer = ImageEnhancer(read_settings_file(settings_file_path))
-enhancer.enhance_folder(folder_path)
-new_folder = enhancer.rename_folder(folder_path)
+new_folder = enhancer.enhance_folder(folder_path)
 enhancer.chown_folder(new_folder)
 enhancer.index_folder(new_folder)
 
