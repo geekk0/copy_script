@@ -118,7 +118,7 @@ class TelegramBot:
         message = f'Папка {folder} доступна для скачивания по ссылке: {download_url}'
         self.bot.send_message(self.chat_id, message)
 
-    def send_message(self, message):
+    def send_message_to_group(self, message):
         self.bot.send_message(self.chat_id, message)
 
     def run_index(self):

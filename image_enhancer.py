@@ -12,7 +12,8 @@ from loguru import logger
 
 from PIL import Image, ImageEnhance, ImageOps, ExifTags, ImageFilter
 from configparser import ConfigParser, NoSectionError
-from lockfile import write_to_log, write_to_common_file
+from lockfile import write_to_common_file
+from tg_bot import TelegramBot
 
 class ImageEnhancer:
     def __init__(self, settings):
@@ -206,9 +207,7 @@ class ImageEnhancer:
         if folder in already_indexed_list:
             return True
         else:
-            write_to_log(f'folder: {folder} is not indexed yet',
-                         "image_enhancer.log",
-                         level="DEBUG", logger=logger)
+            logger.debug(f'folder: {folder} is not indexed yet')
 
     @staticmethod
     def gather_already_indexed():
@@ -284,27 +283,41 @@ def read_settings_file(settings_file):
 
 
 def run_image_enhancer(studio_settings_file: str):
-    while True:
-        studio_settings = read_settings_file(studio_settings_file)
-        path_settings = studio_settings.get('path_settings')
-        studio_name = path_settings.get('studio_name')
-        write_to_log(f"Starting {studio_name} image enhancer",
-                     "image_enhancer.log",
-                     level="INFO", logger=logger)
-        image_enhancer = ImageEnhancer(studio_settings)
-        image_enhancer.update_enhanced_folders()
-        process_name = f"{studio_name}_image_enhancer"
-        setproctitle.setproctitle(process_name)
-        image_enhancer.run()
-        time.sleep(15)
+    error_sent = False
 
+    studio_name = (read_settings_file(studio_settings_file)
+                   .get('path_settings').get('studio_name'))
 
-if __name__ == '__main__':
-    logger.add("image_enhancer.log",
+    logger.add(f"{studio_name}_image_enhancer.log",
                format="{time} {level} {message}",
                rotation="1 MB",
                compression='zip',
                level="DEBUG")
+
+    while True:
+        studio_settings = read_settings_file(studio_settings_file)
+        path_settings = studio_settings.get('path_settings')
+        studio_name = path_settings.get('studio_name')
+        logger.info(f"Starting {studio_name} image enhancer")
+
+        try:
+            image_enhancer = ImageEnhancer(studio_settings)
+            image_enhancer.update_enhanced_folders()
+            process_name = f"{studio_name}_image_enhancer"
+            setproctitle.setproctitle(process_name)
+            image_enhancer.run()
+            time.sleep(15)
+            error_sent = False
+        except Exception as e:
+            logger.error(f"Error run_image_enhancer: {e}")
+            if not error_sent:
+                tg_bot = TelegramBot()
+                tg_bot.send_message_to_group(f"Error in {studio_name} image enhancer: {e}")
+                error_sent = True
+            time.sleep(15)
+
+
+if __name__ == '__main__':
     studios_as_args = []
     studios_settings_files = get_settings_files()
     for settings_file in studios_settings_files:
