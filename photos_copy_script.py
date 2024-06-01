@@ -88,6 +88,8 @@ class FileCopier:
 
         allowed_extension = self.config["FileExtension"].lower()
 
+        unprocessed_files = False
+
         for filename in os.listdir(base_path):
 
             source_file = os.path.join(base_path, filename)
@@ -128,10 +130,15 @@ class FileCopier:
                     self.destination_path = None
                     self.moved_file_path = None
                     self.file_destination_hour_range = None
+                    unprocessed_files = True
 
             except Exception as error_msg:
                 logger.error(f"can't get file size for file '{filename}': {error_msg}")
                 continue
+
+        if unprocessed_files:
+            time.sleep(int(self.config["FileSizeCheckInterval"]))
+            self.process_files(base_path)
 
     def run(self):
         studio_root_path = self.config["BaseDirPath"]
