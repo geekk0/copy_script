@@ -100,9 +100,20 @@ class ImageEnhancer:
 
                     black_white = self.is_black_white(image)
                     if not black_white:
-                        image = self.adjust_image_temperature(image)
-                    enhanced_image_content = self.enhance_image(image, black_white=black_white)
-                    self.save_image(enhanced_image_content, item_path.replace(folder, new_folder), original_exif)
+                        try:
+                            image = self.adjust_image_temperature(image)
+                        except Exception as e:
+                            logger.error(f'Error adjusting image "{item}" temperature: {e}')
+                    try:
+                        enhanced_image_content = self.enhance_image(image, black_white=black_white)
+                    except Exception as e:
+                        logger.error(f'Error enhancing image "{item}": {e}')
+                    try:
+                        self.save_image(enhanced_image_content, item_path.replace(folder, new_folder), original_exif)
+                    except Exception as e:
+                        logger.error(f'Error saving enhanced image "{item}": {e}')
+            else:
+                logger.error(f'not a file: {item_path}')
 
         self.save_enhanced_folders(folder)
         return new_folder
