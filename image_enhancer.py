@@ -208,10 +208,8 @@ class ImageEnhancer:
             return None
 
     def check_not_enhanced_yet(self, folder):
-        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders')
-        if not enhanced_folders:
-            return True
-        return folder not in self.load_enhanced_folders().get('enhanced_folders')
+        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders', [])
+        return folder not in enhanced_folders
 
     def check_folder_not_in_process(self, folder):
         already_indexed_list = self.gather_already_indexed()
@@ -242,17 +240,12 @@ class ImageEnhancer:
 
     @staticmethod
     def load_enhanced_folders():
-        filename = 'enhanced_folders.json'
-        default_values = {'date': None, 'enhanced_folders': []}
-        if not os.path.isfile(filename):
-            return default_values
         try:
-            with open(filename) as file:
+            with open('enhanced_folders.json', 'r') as file:
                 data = json.load(file)
                 return data
-        except json.decoder.JSONDecodeError:
-            logger.debug("File does not contain valid JSON data. Returning default values.")
-            return default_values
+        except FileNotFoundError:
+            return {'date': None, 'enhanced_folders': []}
 
     def save_enhanced_folders(self, enhanced_folder):
         current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
