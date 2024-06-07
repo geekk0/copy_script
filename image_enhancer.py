@@ -314,10 +314,10 @@ def run_image_enhancer(studio_settings_file: str):
             error_sent = False
         except Exception as e:
             logger.error(f"Error run_image_enhancer: {e}")
-            if not error_sent:
-                tg_bot = TelegramBot()
-                tg_bot.send_message_to_group(f"Error in {studio_name} image enhancer: {e}")
-                error_sent = True
+            # if not error_sent:
+            #     tg_bot = TelegramBot()
+            #     tg_bot.send_message_to_group(f"Error in {studio_name} image enhancer: {e}")
+            #     error_sent = True
             time.sleep(15)
 
 
