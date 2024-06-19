@@ -101,6 +101,9 @@ class FileCopier:
                 '%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
+            logger.info(f'source_file: {source_file} / creation_date: {creation_date}, '
+                         f'current_date: {current_date}')
+
             if creation_date != current_date:
                 continue
 
