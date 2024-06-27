@@ -97,8 +97,9 @@ class FileCopier:
             if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
                 continue  # Skip files that don't have the allowed extension
 
-            creation_date = datetime.fromtimestamp(self.get_creation_time(source_file), self.studio_timezone).strftime(
-                '%d.%m')
+            creation_date = datetime.fromtimestamp(
+                self.get_creation_time(source_file),
+                self.studio_timezone).strftime('%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
             logger.info(f'source_file: {source_file} / creation_date: {creation_date}, '
