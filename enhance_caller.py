@@ -2,6 +2,8 @@ import os
 import re
 import json
 import subprocess
+import time
+
 import pytz
 import requests
 
@@ -19,8 +21,8 @@ class EnhanceCaller:
         self.photos_path = settings['path_settings']['BaseDirPath']
         self.files_extension = settings['path_settings']['FileExtension']
         self.studio_timezone = pytz.timezone(settings['path_settings']['TimeZoneName'])
-        self.api_url = settings['ImageEnhancement']['api_url']
-        self.action = settings['ImageEnhancement']['action']
+        self.api_url = settings['enhance_settings']['api_url']
+        self.action = settings['enhance_settings']['action']
 
     def run(self):
 
@@ -39,7 +41,7 @@ class EnhanceCaller:
 
     def enhance_folder(self, folder):
 
-        enhance_folder_url = self.api_url + "enhance_folder/"
+        enhance_folder_url = self.api_url + "/enhance_folder/"
 
         data = {
             "studio_name": self.studio,
@@ -170,7 +172,7 @@ if __name__ == '__main__':
         studios_settings_files = get_settings_files()
         for settings_file in studios_settings_files:
             settings = read_settings_file(settings_file)
-            if settings.get('action'):
+            if settings.get('enhance_settings').get('action'):
                 studio_name = settings.get('path_settings').get('studio_name')
 
                 logger.add(f"{studio_name}_image_enhancer.log",
@@ -181,3 +183,4 @@ if __name__ == '__main__':
 
                 enhance_caller = EnhanceCaller(settings)
                 enhance_caller.run()
+            time.sleep(5)
