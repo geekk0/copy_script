@@ -183,4 +183,4 @@ if __name__ == '__main__':
 
                 enhance_caller = EnhanceCaller(settings)
                 enhance_caller.run()
-            time.sleep(5)
+        time.sleep(10)
