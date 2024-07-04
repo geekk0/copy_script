@@ -94,55 +94,66 @@ class FileCopier:
 
             source_file = os.path.join(base_path, filename)
 
-            if not (os.path.isfile(source_file) and filename.lower().endswith(allowed_extension)):
-                continue  # Skip files that don't have the allowed extension
+            if not (os.path.isfile(source_file)
+                    and filename.lower().endswith(allowed_extension)):
+                continue
 
+            if not self.creation_date_check(source_file):
+                continue
+
+            if not self.transfer_active_check(source_file):
+                self.destination_path = None
+                self.moved_file_path = None
+                self.file_destination_hour_range = None
+                unprocessed_files = True
+            else:
+
+                self.file_destination_hour_range = self.get_hour_range_from_creation_time(source_file)
+
+                if not self.file_destination_hour_range:
+                    continue
+
+                current_month, current_date = self.get_current_month_and_date()
+                destination_path = self.construct_paths(current_month,
+                                                        current_date,
+                                                        self.file_destination_hour_range)
+
+                try:
+                    if self.check_first_file_timestamp(destination_path, source_file):
+                        self.move_file(source_file, destination_path)
+                        self.destination_path = destination_path
+                except Exception as e:
+                    logger.error(e)
+
+        if unprocessed_files:
+            time.sleep(int(self.config["FileSizeCheckInterval"]))
+            self.process_files(base_path)
+
+    def creation_date_check(self, source_file):
+        try:
             creation_date = datetime.fromtimestamp(
                 self.get_creation_time(source_file),
                 self.studio_timezone).strftime('%d.%m')
             current_date = self.get_current_month_and_date()[1]
 
-            logger.info(f'source_file: {source_file} / creation_date: {creation_date}, '
-                         f'current_date: {current_date}')
+            if creation_date == current_date:
+                return True
+            else:
+                logger.debug((f'source_file: {source_file} / creation_date: {creation_date}, '
+                              f'current_date: {current_date}'))
+        except Exception as e:
+            logger.error(f'Error getting creation date: {e}')
 
-            if creation_date != current_date:
-                continue
+    def transfer_active_check(self, source_file):
+        initial_size = os.path.getsize(source_file)
+        time.sleep(int(self.config["FileSizeCheckInterval"]))
+        try:
+            current_size = os.path.getsize(source_file)
 
-            initial_size = os.path.getsize(source_file)
-            time.sleep(int(self.config["FileSizeCheckInterval"]))
-            try:
-                current_size = os.path.getsize(source_file)
-
-                if initial_size == current_size:
-                    self.file_destination_hour_range = self.get_hour_range_from_creation_time(source_file)
-
-                    if not self.file_destination_hour_range:
-                        continue
-
-                    current_month, current_date = self.get_current_month_and_date()
-                    destination_path = self.construct_paths(current_month,
-                                                            current_date,
-                                                            self.file_destination_hour_range)
-
-                    try:
-                        if self.check_first_file_timestamp(destination_path, source_file):
-                            self.move_file(source_file, destination_path)
-                            self.destination_path = destination_path
-                    except Exception as e:
-                        logger.error(e)
-                else:
-                    self.destination_path = None
-                    self.moved_file_path = None
-                    self.file_destination_hour_range = None
-                    unprocessed_files = True
-
-            except Exception as error_msg:
-                logger.error(f"can't get file size for file '{filename}': {error_msg}")
-                continue
-
-        if unprocessed_files:
-            time.sleep(int(self.config["FileSizeCheckInterval"]))
-            self.process_files(base_path)
+            if initial_size == current_size:
+                return True
+        except Exception as e:
+            logger.error(f'transfer_active_check: {e}; source file: {source_file}')
 
     def run(self):
         studio_root_path = self.config["BaseDirPath"]
@@ -165,6 +176,7 @@ class FileCopier:
 
                 if self.all_files_moved and self.destination_path not in self.already_indexed_folders:
                     self.add_to_index_queue(self.destination_path)
+                    self.all_files_moved = False
 
             self.run_index_queue(studio_root_path)
 
@@ -194,10 +206,6 @@ class FileCopier:
                     del self.first_file_timestamp[destination_path]
                     return True
         else:
-            return True
-
-    def check_folder_exists_os_path(self, path):
-        if os.path.exists(path):
             return True
 
     def check_if_all_files_moved(self, base_path):
