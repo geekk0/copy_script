@@ -17,7 +17,7 @@ class TelegramBot:
     token = environ.get("BOT_TOKEN")
     bot = telebot.TeleBot(token)
     chat_id = int(environ.get('REFLECT_GROUP_CHAT_ID'))
-    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение', 'Reflect KZ']
+    studios = ['Силуэт', 'Портрет(ЗАЛ)', 'Отражение', 'Reflect KZ', 'test_studio']
     current_level_folders = []
     base_path = '/cloud/reflect/files'
     current_path = ''
@@ -121,10 +121,12 @@ class TelegramBot:
     def send_message_to_group(self, message):
         self.bot.send_message(self.chat_id, message)
 
-    def run_index(self):
+    def run_index(self, root_folder=False):
         sudo_password = environ.get('SUDOP')
         full_path = self.current_path
         path = self.current_path.replace('/cloud', '')
+        if root_folder:
+            path = self.base_path.replace('/cloud', '')
         command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
         self.current_path = os.path.dirname(self.current_path)
         self.write_to_log(command)
@@ -133,9 +135,12 @@ class TelegramBot:
         output, error = process.communicate()
 
         if process.returncode == 0:
-            self.write_to_log(output)
-            self.update_processed_folders(full_path)
-            return "Индексация произведена успешно"
+            if not root_folder:
+                self.write_to_log(output)
+                self.update_processed_folders(full_path)
+                self.run_index(root_folder=True)
+            else:
+                return "Индексация произведена успешно"
 
         else:
             self.write_to_log(f'output: {output}, error: {error}')
@@ -199,10 +204,13 @@ class TelegramBot:
             self.update_message(call, text="Нет файла рассылки", keyboard=keyboard)
 
     def get_studio_config_file(self):
-        studio_configs = {'Отражение': 'reflect_config.ini',
+        studio_configs = {
+            'Отражение': 'reflect_config.ini',
                           'Портрет(ЗАЛ)': 'portrait_config.ini',
                           'Силуэт': 'silhouette_config.ini',
-                          'Reflect KZ': 'kz_config.ini'}
+                          'Reflect KZ': 'kz_config.ini',
+                          'test_studio': 'test_studio_config.ini',
+                          }
 
         studio_config_file_path = (os.path.join(f'/cloud/copy_script',
                                                 studio_configs[self.selected_studio]))
