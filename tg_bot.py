@@ -126,7 +126,8 @@ class TelegramBot:
         full_path = self.current_path
         path = self.current_path.replace('/cloud', '')
         if root_folder:
-            path = self.base_path.replace('/cloud', '')
+            studio_root_path = os.path.join(self.base_path, self.selected_studio)
+            path = studio_root_path.replace('/cloud', '')
         command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
         self.current_path = os.path.dirname(self.current_path)
         self.write_to_log(command)
