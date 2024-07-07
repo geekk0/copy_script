@@ -70,13 +70,14 @@ class FileCopier:
         )
         return base_path
 
-    def move_file(self, source_file, destination_path):
+    def move_file(self, source_file, destination_path, month_path):
         filename = os.path.basename(source_file)
         destination_file = os.path.join(destination_path, filename)
 
         if not os.path.exists(destination_file):
             try:
                 os.makedirs(destination_path, exist_ok=True)
+                self.change_month_permissions(month_path)
                 logger.info(f'File {source_file} moved to {destination_path}')
                 shutil.move(source_file, destination_file)
                 self.moved_file_path = destination_file
@@ -117,11 +118,14 @@ class FileCopier:
                 destination_path = self.construct_paths(current_month,
                                                         current_date,
                                                         self.file_destination_hour_range)
+                month_path = os.path.join(self.config["BaseDirPath"],
+                                          f'{current_month} {self.config["Studio_name"].upper()}')
 
                 try:
                     if self.check_first_file_timestamp(destination_path, source_file):
-                        self.move_file(source_file, destination_path)
+                        self.move_file(source_file, destination_path, month_path)
                         self.destination_path = destination_path
+
                 except Exception as e:
                     logger.error(e)
 
@@ -367,6 +371,11 @@ class FileCopier:
 
         except Exception as e:
             logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+
+    @staticmethod
+    def change_month_permissions(month_path):
+        command = f'sudo chmod -R g+w {month_path}'
+        os.system(command)
 
     def get_folder_url(self, folder):
         self.nextcloud_ocs.get_token()
