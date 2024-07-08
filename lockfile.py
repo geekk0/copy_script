@@ -43,3 +43,4 @@ def write_to_common_file(message, common_file_path):
     with LockFileWrapper(lock_file_path):
         with open(common_file_path, 'w') as common_file:
             json.dump(message, common_file)
+            return lock_file_path

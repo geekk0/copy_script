@@ -266,7 +266,8 @@ class ImageEnhancer:
         # with open('enhanced_folders.json', 'w') as file:
         #     json.dump(data, file)
         try:
-            write_to_common_file(data, 'enhanced_folders.json')
+            result = write_to_common_file(data, 'enhanced_folders.json')
+            logger.info(f'write_to_common_file result: {result}')
         except Exception as e:
             logger.error(f'write_to_common_file error: {e}')
 

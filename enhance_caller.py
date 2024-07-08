@@ -59,7 +59,7 @@ class EnhanceCaller:
 
         if response.status_code != 200:
             logger.error(f"Error occurred: {response.json().get('error_message')}")
-        elif response.json().get('status') == 'success':
+        else:
             self.save_enhanced_folders(folder)
             return f'{folder}_RS'
 
@@ -179,7 +179,7 @@ if __name__ == '__main__':
             if settings.get('enhance_settings').get('action'):
                 studio_name = settings.get('path_settings').get('studio_name')
 
-                logger.add(f"{studio_name}_image_enhancer.log",
+                logger.add(f"{studio_name}enhance_caller.log",
                            format="{time} {level} {message}",
                            rotation="1 MB",
                            compression='zip',
