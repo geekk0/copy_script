@@ -167,10 +167,13 @@ class ImageEnhancer:
         for folder in today_folders:
             if self.check_not_enhanced_yet(folder):
                 if self.check_folder_not_in_process(folder):
-                    new_folder = self.enhance_folder(folder)
-                    # new_folder = self.rename_folder(folder)
-                    self.chown_folder(new_folder)
-                    self.index_folder(new_folder)
+                    try:
+                        new_folder = self.enhance_folder(folder)
+                        # new_folder = self.rename_folder(folder)
+                        self.chown_folder(new_folder)
+                        self.index_folder(new_folder)
+                    except Exception as e:
+                        logger.error(f'enhance folder {folder} error: {e}')
 
     def get_folders_modified_today(self):
         today = date.today()
@@ -231,6 +234,9 @@ class ImageEnhancer:
 
     def update_enhanced_folders(self):
         current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
+        logger.info(f'update_enhanced_folders current_date(studio timezone): {current_date}')
+        logger.info(f"datetime.now: {datetime.now().strftime('%H:%M:%S')}")
+
         processed_data = self.load_enhanced_folders()
         process_date = processed_data.get('date')
 
@@ -302,7 +308,7 @@ def run_image_enhancer(studio_settings_file: str):
         studio_settings = read_settings_file(studio_settings_file)
         path_settings = studio_settings.get('path_settings')
         studio_name = path_settings.get('studio_name')
-        logger.info(f"Starting {studio_name} image enhancer")
+        logger.info(f"Starting {studio_name} image enhancer, time: {datetime.now().strftime('%H:%M:%S')}")
 
         try:
             image_enhancer = ImageEnhancer(studio_settings)
