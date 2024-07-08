@@ -263,14 +263,14 @@ class ImageEnhancer:
             'enhanced_folders': list(enhanced_folders),
         }
 
-        logger.info(f'enhanced_folders: {data["enhanced_folders"]}')
-        logger.info(f'enhanced folder: {enhanced_folder}')
-
         # with open('enhanced_folders.json', 'w') as file:
         #     json.dump(data, file)
-        result = write_to_common_file(data, 'enhanced_folders.json')
-        if isinstance(result, Exception):
-            logger.error(f'save_enhanced_folders error: {result}')
+        try:
+            write_to_common_file(data, 'enhanced_folders.json')
+        except Exception as e:
+            logger.error(f'write_to_common_file error: {e}')
+
+
 
     @staticmethod
     def clear_enhanced_folders():

@@ -32,10 +32,14 @@ class EnhanceCaller:
             for folder in today_folders:
                 if self.check_not_enhanced_yet(folder):
                     if self.check_folder_not_in_process(folder):
-                        new_folder = self.enhance_folder(folder)
-                        if new_folder:
-                            self.chown_folder(new_folder)
-                            self.index_folder(new_folder)
+                        try:
+                            new_folder = self.enhance_folder(folder)
+                            if new_folder:
+                                self.chown_folder(new_folder)
+                                self.index_folder(new_folder)
+                        except Exception as e:
+                            logger.error(f'enhance folder {folder} error: {e}')
+
         except Exception as e:
             logger.error(e)
 
