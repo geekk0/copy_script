@@ -235,7 +235,7 @@ class ImageEnhancer:
     def update_enhanced_folders(self):
         current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         logger.info(f'update_enhanced_folders current_date(studio timezone): {current_date}')
-        logger.info(f"datetime.now: {datetime.now().strftime('%H:%M:%S')}")
+        logger.info(f"datetime.now: {datetime.now().strftime('%d.%m')}")
 
         processed_data = self.load_enhanced_folders()
         process_date = processed_data.get('date')
@@ -265,7 +265,9 @@ class ImageEnhancer:
 
         # with open('enhanced_folders.json', 'w') as file:
         #     json.dump(data, file)
-        write_to_common_file(data, 'enhanced_folders.json')
+        result = write_to_common_file(data, 'enhanced_folders.json')
+        if isinstance(result, Exception):
+            logger.error(f'save_enhanced_folders error: {result}')
 
     @staticmethod
     def clear_enhanced_folders():

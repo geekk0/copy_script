@@ -39,7 +39,11 @@ def write_to_log(message, log_file_path, level, logger):
 
 
 def write_to_common_file(message, common_file_path):
-    lock_file_path = f'{common_file_path}.lock'
-    with LockFileWrapper(lock_file_path):
-        with open(common_file_path, 'w') as common_file:
-            json.dump(message, common_file)
+    try:
+        lock_file_path = f'{common_file_path}.lock'
+        with LockFileWrapper(lock_file_path):
+            with open(common_file_path, 'w') as common_file:
+                json.dump(message, common_file)
+        return True
+    except Exception as e:
+        return e
