@@ -263,6 +263,9 @@ class ImageEnhancer:
             'enhanced_folders': list(enhanced_folders),
         }
 
+        logger.info(f'enhanced_folders: {data["enhanced_folders"]}')
+        logger.info(f'enhanced folder: {enhanced_folder}')
+
         # with open('enhanced_folders.json', 'w') as file:
         #     json.dump(data, file)
         result = write_to_common_file(data, 'enhanced_folders.json')
