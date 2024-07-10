@@ -92,30 +92,38 @@ class ImageEnhancer:
         for item in os.listdir(folder):
             item_path = os.path.join(folder, item)
             if os.path.isfile(item_path):
-                with open(item_path, 'rb') as f:
-                    image = Image.open(f)
+                try:
+                    with open(item_path, 'rb') as f:
+                        image = Image.open(f)
 
-                    original_exif = image.info.get('exif', b'')
-                    logger.debug(f'enhancing file: {item_path}')
+                        original_exif = image.info.get('exif', b'')
+                        logger.debug(f'enhancing file: {item_path}')
 
-                    black_white = self.is_black_white(image)
-                    if not black_white:
+                        black_white = self.is_black_white(image)
+                        if not black_white:
+                            try:
+                                image = self.adjust_image_temperature(image)
+                            except Exception as e:
+                                logger.error(f'Error adjusting image "{item}" temperature: {e}')
                         try:
-                            image = self.adjust_image_temperature(image)
+                            enhanced_image_content = self.enhance_image(image, black_white=black_white)
                         except Exception as e:
-                            logger.error(f'Error adjusting image "{item}" temperature: {e}')
-                    try:
-                        enhanced_image_content = self.enhance_image(image, black_white=black_white)
-                    except Exception as e:
-                        logger.error(f'Error enhancing image "{item}": {e}')
-                    try:
-                        self.save_image(enhanced_image_content, item_path.replace(folder, new_folder), original_exif)
-                    except Exception as e:
-                        logger.error(f'Error saving enhanced image "{item}": {e}')
+                            logger.error(f'Error enhancing image "{item}": {e}')
+                        try:
+                            self.save_image(enhanced_image_content, item_path.replace(folder, new_folder),
+                                            original_exif)
+                        except Exception as e:
+                            logger.error(f'Error saving enhanced image "{item}": {e}')
+                except Exception as e:
+                    logger.error(f'Error processing file "{item_path}": {e}')
             else:
                 logger.error(f'not a file: {item_path}')
 
-        self.save_enhanced_folders(folder)
+        try:
+            self.save_enhanced_folders(folder)
+        except Exception as e:
+            logger.error(f'Error saving enhanced folders: {e}')
+
         return new_folder
 
     @staticmethod

@@ -121,13 +121,36 @@ class TelegramBot:
     def send_message_to_group(self, message):
         self.bot.send_message(self.chat_id, message)
 
-    def run_index(self, root_folder=False):
+    # def run_index(self, root_folder=False):
+    #     sudo_password = environ.get('SUDOP')
+    #     full_path = self.current_path
+    #     path = self.current_path.replace('/cloud', '')
+    #     if root_folder:
+    #         studio_root_path = os.path.join(self.base_path, self.selected_studio)
+    #         path = studio_root_path.replace('/cloud', '')
+    #     command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
+    #     self.current_path = os.path.dirname(self.current_path)
+    #     self.write_to_log(command)
+    #
+    #     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #     output, error = process.communicate()
+    #
+    #     if process.returncode == 0:
+    #         if not root_folder:
+    #             self.write_to_log(output)
+    #             self.update_processed_folders(full_path)
+    #             self.run_index(root_folder=True)
+    #         else:
+    #             return "Индексация произведена успешно"
+    #
+    #     else:
+    #         self.write_to_log(f'output: {output}, error: {error}')
+    #         return "Ошибка индексации"
+
+    def run_index(self):
         sudo_password = environ.get('SUDOP')
         full_path = self.current_path
         path = self.current_path.replace('/cloud', '')
-        if root_folder:
-            studio_root_path = os.path.join(self.base_path, self.selected_studio)
-            path = studio_root_path.replace('/cloud', '')
         command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
         self.current_path = os.path.dirname(self.current_path)
         self.write_to_log(command)
@@ -136,12 +159,9 @@ class TelegramBot:
         output, error = process.communicate()
 
         if process.returncode == 0:
-            if not root_folder:
-                self.write_to_log(output)
-                self.update_processed_folders(full_path)
-                self.run_index(root_folder=True)
-            else:
-                return "Индексация произведена успешно"
+            self.write_to_log(output)
+            self.update_processed_folders(full_path)
+            return "Индексация произведена успешно"
 
         else:
             self.write_to_log(f'output: {output}, error: {error}')
