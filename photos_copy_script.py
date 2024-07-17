@@ -125,6 +125,8 @@ class FileCopier:
                     if self.check_first_file_timestamp(destination_path, source_file):
                         self.move_file(source_file, destination_path, month_path)
                         self.destination_path = destination_path
+                    else:
+                        self.run_index(base_path, skip_add_to_indexed=True)
 
                 except Exception as e:
                     logger.error(e)
