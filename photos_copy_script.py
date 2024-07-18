@@ -74,16 +74,21 @@ class FileCopier:
         filename = os.path.basename(source_file)
         destination_file = os.path.join(destination_path, filename)
 
-        if not os.path.exists(destination_file):
+        if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path, exist_ok=True)
+                logger.info(f"month_path: '{month_path}'")
                 self.change_month_permissions(month_path)
-                logger.info(f'File {source_file} moved to {destination_path}')
-                shutil.move(source_file, destination_file)
-                self.moved_file_path = destination_file
             except Exception as e:
-                logger.error(f"Error moving file '{filename}' to '{destination_path}': {e}")
-                self.moved_file_path = None
+                logger.error(f"Error creating folder '{destination_path}': {e}")
+
+        try:
+            shutil.move(source_file, destination_file)
+            logger.info(f'File {source_file} moved to {destination_path}')
+            self.moved_file_path = destination_file
+        except Exception as e:
+            logger.error(f"Error moving file '{filename}' to '{destination_path}': {e}")
+            self.moved_file_path = None
 
     def process_files(self, base_path):
 
