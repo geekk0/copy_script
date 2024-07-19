@@ -77,7 +77,6 @@ class FileCopier:
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path, exist_ok=True)
-                logger.info(f"month_path: '{month_path}'")
                 self.change_month_permissions(month_path)
             except Exception as e:
                 logger.error(f"Error creating folder '{destination_path}': {e}")
@@ -183,6 +182,7 @@ class FileCopier:
             self.process_files(studio_root_path)
 
             if self.destination_path:
+                time.sleep(7)
                 self.check_if_all_files_moved(studio_root_path)
 
                 if self.all_files_moved and self.destination_path not in self.already_indexed_folders:
@@ -203,21 +203,23 @@ class FileCopier:
 
     def check_first_file_timestamp(self, destination_path, source_file):
 
-        delay_time = int(config.get("FirstFileDelayTime")) if config.get("FirstFileDelayTime") else 10
+        # delay_time = int(config.get("FirstFileDelayTime")) if config.get("FirstFileDelayTime") else 10
+        #
+        # if not os.path.exists(destination_path):
+        #     source_file_creation_time = self.get_creation_time(source_file)
+        #
+        #     if destination_path not in self.first_file_timestamp:
+        #         self.first_file_timestamp[destination_path] = source_file_creation_time
+        #     else:
+        #         current_time = datetime.now().astimezone(self.studio_timezone)
+        #         delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.studio_timezone)
+        #         if delta > timedelta(minutes=delay_time):
+        #             del self.first_file_timestamp[destination_path]
+        #             return True
+        # else:
+        #     return True
 
-        if not os.path.exists(destination_path):
-            source_file_creation_time = self.get_creation_time(source_file)
-
-            if destination_path not in self.first_file_timestamp:
-                self.first_file_timestamp[destination_path] = source_file_creation_time
-            else:
-                current_time = datetime.now().astimezone(self.studio_timezone)
-                delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.studio_timezone)
-                if delta > timedelta(minutes=delay_time):
-                    del self.first_file_timestamp[destination_path]
-                    return True
-        else:
-            return True
+        return True
 
     def check_if_all_files_moved(self, base_path):
 
@@ -381,7 +383,7 @@ class FileCopier:
 
     @staticmethod
     def change_month_permissions(month_path):
-        command = f'sudo chmod -R g+w {month_path}'
+        command = f'sudo chmod -R g+w "{month_path}"'
         os.system(command)
 
     def get_folder_url(self, folder):
