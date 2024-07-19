@@ -203,23 +203,21 @@ class FileCopier:
 
     def check_first_file_timestamp(self, destination_path, source_file):
 
-        # delay_time = int(config.get("FirstFileDelayTime")) if config.get("FirstFileDelayTime") else 10
-        #
-        # if not os.path.exists(destination_path):
-        #     source_file_creation_time = self.get_creation_time(source_file)
-        #
-        #     if destination_path not in self.first_file_timestamp:
-        #         self.first_file_timestamp[destination_path] = source_file_creation_time
-        #     else:
-        #         current_time = datetime.now().astimezone(self.studio_timezone)
-        #         delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.studio_timezone)
-        #         if delta > timedelta(minutes=delay_time):
-        #             del self.first_file_timestamp[destination_path]
-        #             return True
-        # else:
-        #     return True
+        delay_time = int(config.get("FirstFileDelayTime")) if config.get("FirstFileDelayTime") else 10
 
-        return True
+        if not os.path.exists(destination_path):
+            source_file_creation_time = self.get_creation_time(source_file)
+
+            if destination_path not in self.first_file_timestamp:
+                self.first_file_timestamp[destination_path] = source_file_creation_time
+            else:
+                current_time = datetime.now().astimezone(self.studio_timezone)
+                delta = current_time - datetime.fromtimestamp(source_file_creation_time, self.studio_timezone)
+                if delta > timedelta(minutes=delay_time):
+                    del self.first_file_timestamp[destination_path]
+                    return True
+        else:
+            return True
 
     def check_if_all_files_moved(self, base_path):
 
