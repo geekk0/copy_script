@@ -130,6 +130,7 @@ class FileCopier:
                         self.move_file(source_file, destination_path, month_path)
                         self.destination_path = destination_path
                     else:
+                        self.change_ownership(base_path)
                         self.run_index(base_path, skip_add_to_indexed=True)
 
                 except Exception as e:
@@ -182,7 +183,11 @@ class FileCopier:
             self.process_files(studio_root_path)
 
             if self.destination_path:
-                time.sleep(7)
+                time.sleep(4)
+                try:
+                    self.change_ownership(self.destination_path)
+                except Exception as e:
+                    logger.error(e)
                 self.check_if_all_files_moved(studio_root_path)
 
                 if self.all_files_moved and self.destination_path not in self.already_indexed_folders:
