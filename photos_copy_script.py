@@ -140,6 +140,9 @@ class FileCopier:
             time.sleep(int(self.config["FileSizeCheckInterval"]))
             self.process_files(base_path)
 
+        if self.destination_path:
+            self.chown_files()
+
     def creation_date_check(self, source_file):
         try:
             creation_date = datetime.fromtimestamp(
@@ -165,6 +168,10 @@ class FileCopier:
                 return True
         except Exception as e:
             logger.error(f'transfer_active_check: {e}; source file: {source_file}')
+
+    def chown_files(self):
+        path = self.destination_path
+        subprocess.run(['sudo', 'chown', '-R', 'www-data:www-data', path])
 
     def run(self):
         studio_root_path = self.config["BaseDirPath"]
