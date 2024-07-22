@@ -346,7 +346,8 @@ if __name__ == '__main__':
     studios_settings_files = get_settings_files()
     for settings_file in studios_settings_files:
         settings = read_settings_file(settings_file)
-        if settings.get('image_settings'):
+        if (settings.get('image_settings') and
+                settings.get('image_settings').get('enhancer') != 'ai_enhancer'):
             studios_as_args.append(settings_file)
     with multiprocessing.Pool() as pool:
         pool.starmap(run_image_enhancer, [(arg,) for arg in studios_as_args])
