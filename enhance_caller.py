@@ -155,7 +155,7 @@ class EnhanceCaller:
 
 def get_settings_files():
     settings_files = [os.path.join(os.getcwd(), file) for file
-                      in os.listdir(os.getcwd()) if file.endswith('test_studio_config.ini')]
+                      in os.listdir(os.getcwd()) if file.endswith('portrait_config.ini')]
     return settings_files
 
 
