@@ -58,7 +58,8 @@ class EnhanceCaller:
         response = requests.post(enhance_folder_url, json=data)
 
         if response.status_code != 200:
-            logger.error(f"Error occurred: {response.json().get('error_message')}")
+            if 'already exists' not in response.json().get('error_message'):
+                logger.error(f"Error occurred: {response.json().get('error_message')}")
         else:
             self.save_enhanced_folders(folder)
             return f'{folder}_RS'
