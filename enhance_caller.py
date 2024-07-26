@@ -1,3 +1,4 @@
+import glob
 import os
 import re
 import json
@@ -99,12 +100,15 @@ class EnhanceCaller:
 
     def get_folders_modified_today(self):
         today = date.today()
-
         folders_modified_today = []
-        for root, dirs, files in os.walk(self.photos_path):
-            for dir_name in dirs:
-                if re.match(r'^\d{1,2}-\d{1,2}$', dir_name):
-                    dir_path = os.path.join(root, dir_name)
+
+        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
+        folder_path = glob.glob(f'{self.photos_path}/*/{current_date}/*')
+
+        for root, dirs, _ in os.walk(folder_path[0]):
+            for dir_name in (dir_name for dir_name in dirs if re.match(r'^\d{1,2}-\d{1,2}$', dir_name)):
+                dir_path = os.path.join(root, dir_name)
+                with os.scandir(dir_path) as it:
                     folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
                     if folder_creation_day == today:
                         folders_modified_today.append(dir_path)

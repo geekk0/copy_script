@@ -219,8 +219,8 @@ class ImageEnhancer:
             return None
 
     def check_not_enhanced_yet(self, folder):
-        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders', [])
-        return folder not in enhanced_folders
+        if not os.path.exists(folder + "_RS"):
+            return True
 
     def check_folder_not_in_process(self, folder):
         already_indexed_list = self.gather_already_indexed()
