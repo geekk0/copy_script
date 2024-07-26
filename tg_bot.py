@@ -31,6 +31,7 @@ class TelegramBot:
         self.shared_folders = []
         self.mailing_date = ''
         self.image_section = []
+        self.mode = None
 
     def start_polling(self):
         self.bot.polling()
@@ -47,8 +48,9 @@ class TelegramBot:
             )
             return
         if message.content_type == 'text':
-            keyboard = self.create_keyboard(['Индексация', 'Рассылка', 'Обработка'],
-                                           ['indexing', 'mailing', 'enhancement'], no_home_btn=True)
+            keyboard = self.create_keyboard(['Индексация', 'Рассылка', 'Обработка', 'ИИ обработка'],
+                                           ['indexing', 'mailing', 'enhancement', 'ai_enhancement'],
+                                            no_home_btn=True)
             if call:
                 self.update_message(call, "Выберите действие:", keyboard)
             else:
@@ -56,20 +58,28 @@ class TelegramBot:
 
     def handle_callback_query(self, call):
 
-        keywords = ["mailing:", "indexing:", "enhancement:"]
+        # keywords = ["mailing:", "indexing:", "enhancement:", "ai_enhancement:"]
+
+        print(call.data)
 
         if call.message.chat.id != self.chat_id:
             return
 
         elif call.data == "home_clicked":
+            self.current_path = ''
+            self.selected_studio = None
+            self.current_config_file = None
             self.handle_start(call.message, call)
 
-        elif call.data in ["indexing", "mailing", "enhancement"]:
+        elif call.data in ["indexing", "mailing", "enhancement", "ai_enhancement"]:
             self.show_studio_select(call)
 
-        elif any(keyword in call.data for keyword in keywords):
-            if call.data.split(":")[1] in self.studios:
+        elif self.mode and not self.selected_studio:
+            if call.data in self.studios:
                 self.show_studio_folders(call)
+
+        elif self.selected_studio and not self.current_path:
+            self.current_path += f"/{call.data}"
 
         elif 'delete:record' in call.data:
             self.delete_record(call)
@@ -78,6 +88,7 @@ class TelegramBot:
             self.handle_record(call)
 
         else:
+
             if 'image_settings/' in call.data:
                 self.get_new_value_from_user(call)
 
@@ -86,7 +97,12 @@ class TelegramBot:
             elif self.check_exists_folders_inside(call.message):
                 self.show_next_folder(call)
             else:
-                self.call_index(call)
+                if self.mode == 'indexing':
+                    self.call_index(call)
+                elif self.mode == 'ai_enhancement':
+                    self.add_to_ai_queue(self.current_path)
+                    self.update_message(call, text=f'Папка {self.current_path} добавлена '
+                                                   f'в начало очереди ИИ обработки')
 
     def handle_reply(self, message):
 
@@ -295,32 +311,29 @@ class TelegramBot:
                                 keyboard=call.message.reply_markup)
 
     def show_studio_select(self, call):
-        if call.data == "indexing":
-            text = "Выберите студию для индексации:"
-            keyboard = self.create_keyboard(self.studios, ["indexing:" + x for x in self.studios])
-        elif call.data == "mailing":
-            text = "Выберите студию для управления рассылкой:"
-            keyboard = self.create_keyboard(self.studios, ["mailing:" + x for x in self.studios])
-        elif call.data == "enhancement":
-            text = "Выберите студию для изменения настроек обработки:"
-            keyboard = self.create_keyboard(self.studios, ["enhancement:" + x for x in self.studios])
+        text = "Выберите студию:"
+        self.mode = call.data
+        keyboard = self.create_keyboard(self.studios, self.studios)
         self.update_message(call, text, keyboard)
 
     def show_studio_folders(self, call):
 
-        self.selected_studio = call.data.split(":")[1]
-        if call.data.split(":")[0] == 'indexing':
-            self.current_path = f"{self.base_path}/{self.selected_studio}"
+        self.selected_studio = call.data
 
-            folders = self.get_folders_list()
-            folders_keyboard = self.create_keyboard(folders, folders)
-
-            self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
-                                keyboard=folders_keyboard)
-        elif call.data.split(":")[0] == 'mailing':
+        if self.mode == "indexing" or "ai_enhancement":
+            self.list_studio_folders(call)
+        elif self.mode == "mailing":
             self.get_studio_shared_folders(call)
-        elif call.data.split(":")[0] == 'enhancement':
+        elif self.mode == "enhancement":
             self.get_studio_image_settings(call)
+
+
+    def list_studio_folders(self, call):
+        self.current_path = f"{self.base_path}/{self.selected_studio}"
+        folders = self.get_folders_list()
+        folders_keyboard = self.create_keyboard(folders, folders)
+        self.update_message(call, text=self.current_path.replace('/cloud/reflect/files/', ''),
+                            keyboard=folders_keyboard)
 
     def show_next_folder(self, call):
         folders = self.get_folders_list()
@@ -478,6 +491,23 @@ class TelegramBot:
     def write_to_log(message):
         with open('/cloud/copy_script/tg_bot.log', 'a+') as log_file:
             log_file.write(str(message) + '\n')
+
+    def get_ai_queue(self):
+        if not os.path.exists(os.path.join(os.getcwd(), 'ai_enhance_queue.json')):
+            with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+                json.dump([], f)
+                return []
+        with open(os.path.join(os.getcwd(), 'ai_enhance_queue.json'), 'r') as f:
+            return json.load(f)
+
+    def add_to_ai_queue(self, folder):
+        # sudo_password = environ.get('SUDOP')
+        ai_index_queue = self.get_ai_queue()
+        if folder in ai_index_queue:
+            return
+        ai_index_queue.insert(0, folder)
+        with open(os.path.join(os.getcwd(), 'ai_enhance_queue.json'), 'w') as f:
+            json.dump(ai_index_queue, f)
 
 
 if __name__ == "__main__":
