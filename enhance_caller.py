@@ -16,30 +16,28 @@ from lockfile import write_to_common_file
 
 class EnhanceCaller:
 
-    def __init__(self, settings):
+    def __init__(self, settings, base_path=None):
         self.studio = settings['path_settings']['Studio_name']
         self.photos_path = settings['path_settings']['BaseDirPath']
         self.files_extension = settings['path_settings']['FileExtension']
         self.studio_timezone = pytz.timezone(settings['path_settings']['TimeZoneName'])
         self.api_url = settings['enhance_settings']['api_url']
         self.action = settings['enhance_settings']['action']
+        self.base_path = base_path or os.getcwd()
 
     def run(self):
 
         today_folders = self.get_folders_modified_today()
 
+        logger.info(f'today_folders: {today_folders}')
+
         try:
             for folder in today_folders:
-                if self.check_not_enhanced_yet(folder):
+                logger.info(f'{folder}')
+                if folder not in self.get_ai_queue() and self.check_not_enhanced_yet(folder):
                     if self.check_folder_not_in_process(folder):
-                        try:
-                            new_folder = self.enhance_folder(folder)
-                            if new_folder:
-                                self.chown_folder(new_folder)
-                                self.index_folder(new_folder)
-                        except Exception as e:
-                            logger.error(f'enhance folder {folder} error: {e}')
-
+                        self.add_to_ai_queue(folder)
+            self.run_ai_enhance_queue()
         except Exception as e:
             logger.error(e)
 
@@ -62,7 +60,42 @@ class EnhanceCaller:
                 logger.error(f"Error occurred: {response.json().get('error_message')}")
         else:
             self.save_enhanced_folders(folder)
-            return f'{folder}_RS'
+            return f'{folder}_AI'
+
+    def add_to_ai_queue(self, folder):
+        ai_index_queue = self.get_ai_queue()
+        if folder in ai_index_queue:
+            return
+        ai_index_queue.append(folder)
+        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+            json.dump(ai_index_queue, f)
+
+    def get_ai_queue(self):
+        if not os.path.exists(os.path.join(self.base_path, 'ai_enhance_queue.json')):
+            with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+                json.dump([], f)
+                return []
+        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'r') as f:
+            return json.load(f)
+
+    def remove_from_ai_queue(self, folder):
+        ai_index_queue = self.get_ai_queue()
+        ai_index_queue.remove(folder)
+        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+            json.dump(ai_index_queue, f)
+
+    def run_ai_enhance_queue(self):
+        logger.info(f'ai_queue: {self.get_ai_queue()}')
+
+        for folder in self.get_ai_queue():
+            try:
+                new_folder = self.enhance_folder(folder)
+                if new_folder:
+                    self.chown_folder(new_folder)
+                    self.index_folder(new_folder)
+                    self.remove_from_ai_queue(folder)
+            except Exception as e:
+                logger.error(f'enhance folder {folder} error: {e}')
 
     def get_folders_modified_today(self):
         today = date.today()
@@ -129,8 +162,10 @@ class EnhanceCaller:
             return None
 
     def check_not_enhanced_yet(self, folder):
-        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders', [])
-        return folder not in enhanced_folders
+        if not os.path.exists(folder + '_AI'):
+            return True
+        else:
+            self.remove_from_ai_queue(folder)
 
     @staticmethod
     def load_enhanced_folders():
