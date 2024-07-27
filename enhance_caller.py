@@ -81,9 +81,10 @@ class EnhanceCaller:
 
     def remove_from_ai_queue(self, folder):
         ai_index_queue = self.get_ai_queue()
-        ai_index_queue.remove(folder)
-        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
-            json.dump(ai_index_queue, f)
+        if folder in ai_index_queue:
+            ai_index_queue.remove(folder)
+            with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+                json.dump(ai_index_queue, f)
 
     def run_ai_enhance_queue(self):
         logger.info(f'ai_queue: {self.get_ai_queue()}')
@@ -102,7 +103,7 @@ class EnhanceCaller:
         current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         folders_modified_today = glob.glob(f'{self.photos_path}/*/{current_date}/*')
 
-        return folders_modified_today
+        return [x for x in folders_modified_today if not x.endswith('_AI')]
 
     def check_folder_not_in_process(self, folder):
         already_indexed_list = self.gather_already_indexed()
