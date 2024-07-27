@@ -105,13 +105,14 @@ class EnhanceCaller:
         current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
         folder_path = glob.glob(f'{self.photos_path}/*/{current_date}/*')
 
-        for root, dirs, _ in os.walk(folder_path[0]):
-            for dir_name in (dir_name for dir_name in dirs if re.match(r'^\d{1,2}-\d{1,2}$', dir_name)):
-                dir_path = os.path.join(root, dir_name)
-                with os.scandir(dir_path) as it:
-                    folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
-                    if folder_creation_day == today:
-                        folders_modified_today.append(dir_path)
+        if folder_path[0]:
+            for root, dirs, _ in os.walk(folder_path[0]):
+                for dir_name in (dir_name for dir_name in dirs if re.match(r'^\d{1,2}-\d{1,2}$', dir_name)):
+                    dir_path = os.path.join(root, dir_name)
+                    with os.scandir(dir_path) as it:
+                        folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
+                        if folder_creation_day == today:
+                            folders_modified_today.append(dir_path)
 
         return folders_modified_today
 
