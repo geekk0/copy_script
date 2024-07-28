@@ -47,6 +47,11 @@ class TelegramBot:
                 """
             )
             return
+
+        self.current_path = ''
+        self.selected_studio = None
+        self.current_config_file = None
+
         if message.content_type == 'text':
             keyboard = self.create_keyboard(['Индексация', 'Рассылка', 'Обработка', 'ИИ обработка'],
                                            ['indexing', 'mailing', 'enhancement', 'ai_enhancement'],
@@ -66,9 +71,6 @@ class TelegramBot:
             return
 
         elif call.data == "home_clicked":
-            self.current_path = ''
-            self.selected_studio = None
-            self.current_config_file = None
             self.handle_start(call.message, call)
 
         elif call.data in ["indexing", "mailing", "enhancement", "ai_enhancement"]:
