@@ -42,13 +42,13 @@ class EnhanceCaller:
         except Exception as e:
             logger.error(e)
 
-    def enhance_folder(self, folder):
+    def enhance_folder(self, folder, action):
 
         enhance_folder_url = self.api_url + "/enhance_folder/"
 
         data = {
-            "studio_name": self.studio,
-            "action_name": self.action,
+            "studio_name": folder.split('/')[-4],
+            "action_name": action,
             "month": folder.split('/')[-3],
             "day": folder.split('/')[-2],
             "hour": folder.split('/')[-1],
@@ -64,6 +64,25 @@ class EnhanceCaller:
         else:
             self.save_enhanced_folders(folder)
             return f'{folder}_AI'
+
+    def get_folder_action(self, folder):
+
+        if folder.split('/')[-4] == self.studio:
+            return self.action
+
+        config_file_mapping = {
+            'Силуэт': 'silhouette_config.ini',
+            'Отражение': 'reflect_config.ini',
+            'Reflect KZ': 'kz_config.ini'
+        }
+
+        folder_config_file = config_file_mapping[folder.split('/')[-4]]
+
+        action = read_settings_file(
+            os.path.join(os.getcwd(), folder_config_file))['enhance_settings'].get('action')
+
+        return action
+
 
     def add_to_ai_queue(self, folder):
         ai_index_queue = self.get_ai_queue()
@@ -94,7 +113,8 @@ class EnhanceCaller:
         for folder in self.get_ai_queue():
             try:
                 logger.info(f'folder is: {folder}')
-                new_folder = self.enhance_folder(folder)
+                action = self.get_folder_action(folder)
+                new_folder = self.enhance_folder(folder, action)
                 logger.info(f'NEW folder is: {new_folder}')
 
                 if new_folder:
