@@ -54,6 +54,8 @@ class EnhanceCaller:
             "hour": folder.split('/')[-1],
         }
 
+        logger.info(f'data: {data}')
+
         response = requests.post(enhance_folder_url, json=data)
 
         if response.status_code != 200:
@@ -91,7 +93,10 @@ class EnhanceCaller:
 
         for folder in self.get_ai_queue():
             try:
+                logger.info(f'folder is: {folder}')
                 new_folder = self.enhance_folder(folder)
+                logger.info(f'NEW folder is: {new_folder}')
+
                 if new_folder:
                     self.chown_folder(new_folder)
                     self.index_folder(new_folder)
