@@ -233,7 +233,7 @@ if __name__ == '__main__':
             if settings.get('enhance_settings').get('action'):
                 studio_name = settings.get('path_settings').get('studio_name')
 
-                logger.add(f"{studio_name}enhance_caller.log",
+                handler_id = logger.add(f"{studio_name}enhance_caller.log",
                            format="{time} {level} {message}",
                            rotation="1 MB",
                            compression='zip',
@@ -241,4 +241,5 @@ if __name__ == '__main__':
 
                 enhance_caller = EnhanceCaller(settings)
                 enhance_caller.run()
+                logger.remove(handler_id)
         time.sleep(10)
