@@ -1,0 +1,14 @@
+[Unit]
+Description=This service manages ai enhance calling
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/cloud/copy_script
+Environment="PYTHON_ENV=production"
+ExecStart=/bin/bash /cloud/copy_script/run_ai_enhance_caller_script.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
