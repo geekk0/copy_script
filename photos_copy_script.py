@@ -6,17 +6,19 @@ import time
 import json
 import pwd
 import grp
-
-from datetime import datetime, timedelta
-from configparser import ConfigParser
-from nextcloud_ocs import NextcloudOCS
-from tg_bot import TelegramBot
-from yclients_api import YclientsService
-
+import requests
 import pytz
 import setproctitle
 
+from datetime import datetime, timedelta
+from configparser import ConfigParser
+from requests.auth import HTTPBasicAuth
+from dotenv import load_dotenv
 from loguru import logger
+
+from nextcloud_ocs import NextcloudOCS
+from tg_bot import TelegramBot
+from yclients_api import YclientsService
 
 
 class FileCopier:
@@ -187,6 +189,8 @@ class FileCopier:
         while True:
             self.update_processed_folders()  # If outdated also clears the self.shared_folders
 
+            self.delete_outdated_folders()
+
             self.process_files(studio_root_path)
 
             if self.destination_path:
@@ -204,6 +208,45 @@ class FileCopier:
             self.run_index_queue(studio_root_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
+
+    def delete_outdated_folders(self):
+        current_date = datetime.now(self.studio_timezone).strftime('%d')
+        if self.config['Delete_outdated_folders'] != 'Yes' or current_date != '20':
+            return
+
+        now = datetime.now(self.studio_timezone)
+        studio_name = self.config["Studio_name"]
+        studio_base_path = self.config["BaseDirPath"]
+        current_month = self.translate_month_to_russian(now.strftime("%B"))
+
+        for folder_name in os.listdir(studio_base_path):
+            folder_path = os.path.join(studio_base_path, folder_name)
+            if os.path.isdir(folder_path):
+                if current_month not in folder_name and studio_name.upper() in folder_name:
+                    suffix = f'{studio_name}/{current_month} {studio_name.upper()}'
+                    logger.info(f'deleting folder {suffix}')
+                    self.move_folder_to_trash_bin(suffix)
+
+    def move_folder_to_trash_bin(self, suffix):
+
+        load_dotenv()
+        username = os.environ.get('NEXTCLOUD_USERNAME')
+        password = os.environ.get('NEXTCLOUD_PASSWORD')
+
+        server_url = 'https://cloud.reflect-studio.ru'
+
+        file_path = f'/remote.php/dav/files/reflect/{suffix}'
+
+        try:
+            response = requests.delete(f'{server_url}{file_path}', auth=HTTPBasicAuth(username, password))
+
+            if response.status_code == 204:
+                logger.info(f'Folder {suffix} moved to trash bin')
+            else:
+                print(f'Failed to move file to trash bin. Status code: {response.status_code}')
+        except Exception as e:
+            logger.error(f'Move to trash bin error: {e}')
+
 
     def check_folder_exists_console(self, path):
         command = f"ls {path}"
