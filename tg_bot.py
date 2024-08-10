@@ -65,7 +65,7 @@ class TelegramBot:
 
         # keywords = ["mailing:", "indexing:", "enhancement:", "ai_enhancement:"]
 
-        print(call.data)
+        self.write_to_log(call.data)
 
         if call.message.chat.id != self.chat_id:
             return
@@ -76,35 +76,58 @@ class TelegramBot:
         elif call.data in ["indexing", "mailing", "enhancement", "ai_enhancement"]:
             self.show_studio_select(call)
 
-        elif self.mode and not self.selected_studio:
-            if call.data in self.studios:
-                self.show_studio_folders(call)
-
-        elif self.selected_studio and not self.current_path:
-            self.current_path += f"/{call.data}"
-
-        elif 'delete:record' in call.data:
-            self.delete_record(call)
-
-        elif 'record' in call.data:
-            self.handle_record(call)
-
-        else:
-
-            if 'image_settings/' in call.data:
+        elif self.mode == 'enhancement':
+            if not self.selected_studio:
+                self.selected_studio = call.data
+            elif 'image_settings/' in call.data:
                 self.get_new_value_from_user(call)
-
-            elif call.data not in self.current_path:
-                self.current_path += f"/{call.data}"
-            elif self.check_exists_folders_inside(call.message):
-                self.show_next_folder(call)
             else:
-                if self.mode == 'indexing':
-                    self.call_index(call)
-                elif self.mode == 'ai_enhancement':
-                    self.add_to_ai_queue(self.current_path)
-                    self.update_message(call, text=f'Папка {self.current_path} добавлена '
-                                                   f'в начало очереди ИИ обработки')
+                self.get_studio_image_settings(call)
+
+        elif self.mode == 'ai_enhancement':
+            if not self.selected_studio:
+                self.selected_studio = call.data
+            elif self.selected_studio and not self.current_path:
+                self.list_studio_folders(call)
+            # elif self.check_exists_folders_inside(call.message):
+            #     self.show_next_folder(call)
+            # elif self.current_path and (call.data not in self.current_path):
+            #     self.current_path += f"/{call.data}"
+            # else:
+            #     self.add_to_ai_queue(self.current_path)
+
+        # elif self.mode == 'enhancement' and self.selected_studio:
+        #     self.show_studio_image_settings(call)
+        #
+        # elif self.mode and not self.selected_studio:
+        #     if call.data in self.studios:
+        #         self.show_studio_folders(call)
+        #
+        # elif self.selected_studio and not self.current_path:
+        #     self.current_path += f"/{call.data}"
+        #
+        # elif 'delete:record' in call.data:
+        #     self.delete_record(call)
+        #
+        # elif 'record' in call.data:
+        #     self.handle_record(call)
+        #
+        # else:
+        #
+        #     if 'image_settings/' in call.data:
+        #         self.get_new_value_from_user(call)
+        #
+        #     elif call.data not in self.current_path:
+        #         self.current_path += f"/{call.data}"
+        #     elif self.check_exists_folders_inside(call.message):
+        #         self.show_next_folder(call)
+        #     else:
+        #         if self.mode == 'indexing':
+        #             self.call_index(call)
+        #         elif self.mode == 'ai_enhancement':
+        #             self.add_to_ai_queue(self.current_path)
+        #             self.update_message(call, text=f'Папка {self.current_path} добавлена '
+        #                                            f'в начало очереди ИИ обработки')
 
     def handle_reply(self, message):
 
@@ -261,6 +284,8 @@ class TelegramBot:
 
     def get_studio_image_settings(self, call=None):
 
+        self.write_to_log('get_studio_image_settings')
+
         studio_config_file_path = self.get_studio_config_file()
 
         if os.path.exists(studio_config_file_path):
@@ -320,17 +345,20 @@ class TelegramBot:
 
     def show_studio_folders(self, call):
 
-        self.selected_studio = call.data
 
-        if self.mode == "indexing" or "ai_enhancement":
-            self.list_studio_folders(call)
-        elif self.mode == "mailing":
-            self.get_studio_shared_folders(call)
-        elif self.mode == "enhancement":
-            self.get_studio_image_settings(call)
+        self.write_to_log(f'show_studio_folders: self.mode = {self.mode}')
+
+        # if self.mode == "indexing" or "ai_enhancement":
+        #     self.list_studio_folders(call)
+        # elif self.mode == "mailing":
+        #     self.get_studio_shared_folders(call)
+        # elif self.mode == "enhancement":
+        #     self.get_studio_image_settings(call)
+
 
 
     def list_studio_folders(self, call):
+        self.write_to_log('list_studio_folders')
         self.current_path = f"{self.base_path}/{self.selected_studio}"
         folders = self.get_folders_list()
         folders_keyboard = self.create_keyboard(folders, folders)
