@@ -88,8 +88,11 @@ class ImageEnhancer:
     def enhance_folder(self, folder):
         logger.debug(f'enhance folder: {folder}')
         new_folder = folder + '_RS'
-        os.mkdir(new_folder)
+        if not os.path.exists(new_folder):
+            os.mkdir(new_folder)
         for item in os.listdir(folder):
+            if os.path.isfile(os.path.join(new_folder, item)):
+                continue
             item_path = os.path.join(folder, item)
             if os.path.isfile(item_path):
                 try:
