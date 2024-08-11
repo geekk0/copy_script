@@ -36,8 +36,8 @@ async def process_step(callback: CallbackQuery, state: FSMContext, next_state: S
     path = os.path.join(data.get('path'), callback.data)
     await state.update_data(path=path)
 
-    folders_list = [entry for entry in os.listdir(path)
-                    if os.path.isdir(os.path.join(path, entry))]
+    folders_list = sorted([entry for entry in os.listdir(path)
+                           if os.path.isdir(os.path.join(path, entry))])
     folders_kb = await create_kb(folders_list, folders_list * len(folders_list))
     await state.set_state(next_state)
     await callback.message.edit_text(text=text_template.format(studio), reply_markup=folders_kb)
