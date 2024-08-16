@@ -6,7 +6,7 @@ async def create_kb(button_labels, callback_data):
     row = []
     for label, data in zip(button_labels, callback_data):
         row.append(InlineKeyboardButton(text=label, callback_data=data))
-        if len(row) == 5:
+        if len(row) == 3:
             keyboard.append(row)
             row = []
     if row:

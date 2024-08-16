@@ -83,7 +83,6 @@ class EnhanceCaller:
 
         return action
 
-
     def add_to_ai_queue(self, folder):
         ai_index_queue = self.get_ai_queue()
         if folder in ai_index_queue:
