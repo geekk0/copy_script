@@ -163,7 +163,7 @@ async def run_rs_enhance(folder_path):
 
     config_file_name = config_file_mapping.get(studio_name, None)
     if not config_file_name:
-        print(f"Studio '{studio_name}' not found in the mapping.")
+        logger.error(f"Studio '{studio_name}' not found in the mapping.")
         return
 
     try:
