@@ -61,6 +61,10 @@ class EnhanceCaller:
         if response.status_code != 200:
             if 'already exists' not in response.json().get('error_message'):
                 logger.error(f"Error occurred: {response.json().get('error_message')}")
+
+        elif response.json().get('error'):
+            logger.error(f"Error occurred: {response.json().get('error_message')}")
+
         else:
             self.save_enhanced_folders(folder)
             return f'{folder}_AI'
