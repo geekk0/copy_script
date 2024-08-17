@@ -7,6 +7,7 @@ import grp
 import json
 import time
 
+
 from os import environ
 from dotenv import load_dotenv
 
@@ -14,9 +15,9 @@ from .bot_setup import logger
 
 load_dotenv()
 
+sudo_password = environ.get('SUDOP')
 
 async def run_indexing(path):
-    sudo_password = environ.get('SUDOP')
     path = path.replace('/cloud', '')
     command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"
     path = os.path.dirname(path)
@@ -146,4 +147,32 @@ async def get_ai_queue():
             return []
     with open(file_path, 'r') as f:
          return json.load(f)
+
+
+async def run_rs_enhance(folder_path):
+    studio_name = folder_path.split("/")[3]
+
+    config_file_mapping = {
+        'Силуэт': 'silhouette_config.ini',
+        'Отражение': 'reflect_config.ini',
+        'Reflect KZ': 'kz_config.ini'
+    }
+
+    hour_range = folder_path.split("/")[-1]
+    screen_session_name = f"enhance_folder_{studio_name}_{hour_range}"
+
+    config_file_name = config_file_mapping.get(studio_name, None)
+    if not config_file_name:
+        print(f"Studio '{studio_name}' not found in the mapping.")
+        return
+
+    try:
+        password_bytes = sudo_password.encode("utf-8")
+        subprocess.run(["sudo", "-i"], input=password_bytes, check=True)
+        subprocess.run(["screen", "-S", screen_session_name], check=True)
+        subprocess.run(["cd", "/cloud/copy_script"], check=True)
+        subprocess.run(["source", "cs_env/bin/activate"], check=True)
+        subprocess.run(["python", "enhance_folder.py", config_file_name, folder_path], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {e}")
 

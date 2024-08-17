@@ -6,13 +6,12 @@ from aiogram.types import Message, ChatPhoto
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
-from ..bot_setup import logger, form_router, sessions
-from ..sessions import Session
+from ..bot_setup import form_router
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
-from ..utils import (run_indexing, check_ready_for_index, change_ownership,
-                     get_ai_queue, add_to_ai_queue)
+from ..utils import (run_indexing, check_ready_for_index,
+                     change_ownership, add_to_ai_queue)
 
 
 class IndexingForm(StatesGroup):
@@ -83,5 +82,8 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
     elif data.get('mode') == 'ИИ обработка':
         await add_to_ai_queue(path)
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
+
+    elif data.get('mode') == 'Обработка:запустить':
+
 
 form_router.message.middleware(ChatIDChecker())

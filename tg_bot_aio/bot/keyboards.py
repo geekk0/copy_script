@@ -12,3 +12,10 @@ async def create_kb(button_labels, callback_data):
     if row:
         keyboard.append(row)
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+enhance_rs_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text='Запустить', callback_data='Обработка:запустить'),
+        InlineKeyboardButton(text='Настройки', callback_data='Обработка:настройки'),
+    ]
+])
