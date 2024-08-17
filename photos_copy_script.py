@@ -97,6 +97,8 @@ class FileCopier:
 
         unprocessed_files = False
 
+        self.change_ownership(base_path)
+
         for filename in os.listdir(base_path):
 
             source_file = os.path.join(base_path, filename)
@@ -132,7 +134,7 @@ class FileCopier:
                         self.move_file(source_file, destination_path, month_path)
                         self.destination_path = destination_path
                     else:
-                        self.change_ownership(base_path)
+                        # self.change_ownership(base_path)
                         self.run_index(base_path, skip_add_to_indexed=True)
 
                 except Exception as e:
