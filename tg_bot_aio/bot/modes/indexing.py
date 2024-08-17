@@ -11,7 +11,7 @@ from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
 from ..utils import (run_indexing, check_ready_for_index,
-                     change_ownership, add_to_ai_queue)
+                     change_ownership, add_to_ai_queue, run_rs_enhance)
 
 
 class IndexingForm(StatesGroup):
@@ -84,6 +84,8 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
 
     elif data.get('mode') == 'Обработка:запустить':
+        await run_rs_enhance(path)
+        await callback.message.edit_text(text=f"Обработка папки {path} \n запущена")
 
 
 form_router.message.middleware(ChatIDChecker())
