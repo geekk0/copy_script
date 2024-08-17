@@ -84,8 +84,12 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
 
     elif data.get('mode') == 'Обработка:запустить':
-        await run_rs_enhance(path)
-        await callback.message.edit_text(text=f"Обработка папки {path} \n запущена")
+        try:
+            await run_rs_enhance(path)
+            await callback.message.edit_text(text=f"Обработка папки {path} \n запущена")
+        except Exception as e:
+            await callback.message.edit_text(text=f"Ошибка обработки: {e}")
+
 
 
 form_router.message.middleware(ChatIDChecker())
