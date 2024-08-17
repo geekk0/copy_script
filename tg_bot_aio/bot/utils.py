@@ -174,5 +174,5 @@ async def run_rs_enhance(folder_path):
         subprocess.run(["source", "cs_env/bin/activate"], check=True)
         subprocess.run(["python", "enhance_folder.py", config_file_name, folder_path], check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e}")
+        logger.error(f"Error executing command: {e}")
 
