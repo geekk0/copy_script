@@ -170,12 +170,11 @@ async def run_rs_enhance(folder_path):
         return
 
     try:
-        password_bytes = sudo_password.encode("utf-8")
-        subprocess.run(["sudo", "-i"], input=password_bytes, check=True)
-        subprocess.run(["screen", "-S", screen_session_name], check=True)
-        subprocess.run(["cd", "/cloud/copy_script"], check=True)
-        subprocess.run(["source", "cs_env/bin/activate"], check=True)
-        result = subprocess.run(["python", "enhance_folder.py", config_file_name, folder_path],
+        result = subprocess.run(["/cloud/copy_script/tg_bot_aio/bot/enhance_folder_script.sh",
+                                 screen_session_name,
+                                 sudo_password,
+                                 config_file_name,
+                                 folder_path],
                                 check=True, capture_output=True, text=True)
         logger.info(f"RS enhance started. returncode: {result.returncode }")
     except subprocess.CalledProcessError as e:
