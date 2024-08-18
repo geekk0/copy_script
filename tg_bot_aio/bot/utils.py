@@ -150,6 +150,9 @@ async def get_ai_queue():
 
 
 async def run_rs_enhance(folder_path):
+
+    logger.info(f"Running RS enhance for folder: {folder_path}")
+
     studio_name = folder_path.split("/")[4]
 
     config_file_mapping = {
@@ -172,7 +175,9 @@ async def run_rs_enhance(folder_path):
         subprocess.run(["screen", "-S", screen_session_name], check=True)
         subprocess.run(["cd", "/cloud/copy_script"], check=True)
         subprocess.run(["source", "cs_env/bin/activate"], check=True)
-        subprocess.run(["python", "enhance_folder.py", config_file_name, folder_path], check=True)
+        result = subprocess.run(["python", "enhance_folder.py", config_file_name, folder_path],
+                                check=True, capture_output=True, text=True)
+        logger.info(f"RS enhance started. returncode: {result.returncode }")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error executing command: {e}")
 
