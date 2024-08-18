@@ -18,7 +18,7 @@ modes_kb = InlineKeyboardMarkup(inline_keyboard=[
         InlineKeyboardButton(text='Индексация', callback_data='Индексация'),
         InlineKeyboardButton(text='Обработка', callback_data='Обработка'),
         InlineKeyboardButton(text='Рассылка', callback_data='Рассылка'),
-        InlineKeyboardButton(text='Рассылка', callback_data='ИИ Обработка'),
+        InlineKeyboardButton(text='ИИ Обработка', callback_data='ИИ Обработка'),
 
     ],
 

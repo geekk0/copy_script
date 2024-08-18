@@ -150,7 +150,7 @@ async def get_ai_queue():
 
 
 async def run_rs_enhance(folder_path):
-    studio_name = folder_path.split("/")[3]
+    studio_name = folder_path.split("/")[4]
 
     config_file_mapping = {
         'Силуэт': 'silhouette_config.ini',
