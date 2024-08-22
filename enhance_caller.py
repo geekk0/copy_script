@@ -1,8 +1,5 @@
-import glob
 import os
-import re
 import json
-import subprocess
 import time
 
 import pytz
@@ -10,9 +7,8 @@ import requests
 
 from configparser import ConfigParser
 from loguru import logger
-from datetime import datetime, date
 
-from lockfile import write_to_common_file
+from photos_copy_script import FileCopier, read_config
 
 
 class EnhanceCaller:
@@ -28,19 +24,26 @@ class EnhanceCaller:
 
     def run(self):
 
-        today_folders = self.get_folders_modified_today()
+        if not os.path.exists(self.photos_path):
+            logger.error(f'Folder {self.photos_path} does not exist')
+            return
+        today_folders = self.get_ready_folders_list()
+        if not today_folders:
+            return
 
-        logger.info(f'today_folders: {today_folders}')
+        self.index_ready_folders(today_folders)
 
-        try:
-            for folder in today_folders:
-                logger.info(f'{folder}')
-                if folder not in self.get_ai_queue() and self.check_not_enhanced_yet(folder):
-                    if self.check_folder_not_in_process(folder):
-                        self.add_to_ai_queue(folder)
-            self.run_ai_enhance_queue()
-        except Exception as e:
-            logger.error(e)
+        for folder in today_folders:
+            self.add_to_ai_queue(folder)
+
+        self.run_ai_enhance_queue()
+
+    def index_ready_folders(self, ready_folders):
+        for folder in ready_folders:
+            try:
+                self.index_folder(folder)
+            except Exception as e:
+                logger.error(f'Error indexing folder {folder}: {e}')
 
     def enhance_folder(self, folder, action):
 
@@ -66,7 +69,7 @@ class EnhanceCaller:
             logger.error(f"Error occurred: {response.json().get('error_message')}")
 
         else:
-            self.save_enhanced_folders(folder)
+            self.remove_from_processed_folders(folder)
             return f'{folder}_AI'
 
     def get_folder_action(self, folder):
@@ -127,29 +130,25 @@ class EnhanceCaller:
             except Exception as e:
                 logger.error(f'enhance folder {folder} error: {e}')
 
-    def get_folders_modified_today(self):
-        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
-        folders_modified_today = glob.glob(f'{self.photos_path}/*/{current_date}/*')
+    def get_ready_folders_list(self):
+        ready_folders = []
 
-        return [x for x in folders_modified_today if not x.endswith('_AI')]
+        hour_ranges = self.get_hour_ranges_from_processed_folders()
 
-    def check_folder_not_in_process(self, folder):
-        already_indexed_list = self.gather_already_indexed()
-        if folder in already_indexed_list:
-            return True
-        else:
-            logger.debug(f'folder: {folder} is not indexed yet')
+        for hour_range in hour_ranges:
 
-    @staticmethod
-    def gather_already_indexed():
-        current_directory = os.getcwd()
-        already_indexed_list = []
-        for filename in os.listdir(current_directory):
-            if filename.startswith("processed_folders_"):
-                with open(os.path.join(current_directory, filename), 'r') as file:
-                    data = json.load(file)
-                    already_indexed_list.extend(data.get('already_indexed', []))
-        return already_indexed_list
+            try:
+                config = read_config(settings_file)
+                file_copier = FileCopier(config)
+                current_month, current_date = file_copier.get_current_month_and_date()
+                folder_path = file_copier.construct_paths(current_month, current_date, hour_range)
+                logger.debug(f'folder path: {folder_path}')
+                if folder_path not in ready_folders:
+                    ready_folders.append(folder_path)
+            except Exception as e:
+                logger.error(f'Error constructing paths: {e}')
+
+        return ready_folders
 
     @staticmethod
     def chown_folder(folder_path):
@@ -162,53 +161,19 @@ class EnhanceCaller:
         command = f'sudo -u www-data php /var/www/cloud/occ files:scan -p "{path}" --shallow'
         os.system(command)
 
-    @staticmethod
-    def get_creation_time(dir_path):
+    def remove_from_processed_folders(self, hour_range):
+        today_folders = self.get_hour_ranges_from_processed_folders()
+        today_folders.remove(hour_range)
+        with open(f'processed_folders_{self.studio}.json', 'w') as f:
+            json.dump(today_folders, f)
+
+    def get_hour_ranges_from_processed_folders(self):
         try:
-            mod_command = ['stat', '-c', '%Y', dir_path]
-            mod_result = subprocess.run(mod_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                        check=True)
-            modification_time_stat = float(mod_result.stdout.strip())
-
-            create_command = ['stat', '-c', '%W', dir_path]
-            create_result = subprocess.run(create_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                           check=True)
-            creation_time_stat = float(create_result.stdout.strip())
-
-            if modification_time_stat < creation_time_stat:
-                return modification_time_stat
-            else:
-                return creation_time_stat
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error get_creation_time: {e}")
-            return None
-
-    def check_not_enhanced_yet(self, folder):
-        if not os.path.exists(folder + '_AI'):
-            return True
-        else:
-            self.remove_from_ai_queue(folder)
-
-    @staticmethod
-    def load_enhanced_folders():
-        try:
-            with open('enhanced_folders.json', 'r') as file:
+            with open(f'processed_folders_{self.studio}.json', 'r') as file:
                 data = json.load(file)
                 return data
-        except FileNotFoundError:
-            return {'date': None, 'enhanced_folders': []}
-
-    def save_enhanced_folders(self, enhanced_folder):
-        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
-        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders') or []
-        enhanced_folders.append(enhanced_folder)
-
-        data = {
-            'date': current_date,
-            'enhanced_folders': list(enhanced_folders),
-        }
-
-        write_to_common_file(data, 'enhanced_folders.json')
+        except Exception as e:
+            logger.error(f'Error get_hour_ranges_from_processed_folders: {e}')
 
 
 def get_settings_files():

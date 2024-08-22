@@ -1,19 +1,18 @@
 import os
-import re
-import subprocess
 import multiprocessing
 import setproctitle
 import time
 
 import pytz
 import json
-from datetime import datetime, date
+from datetime import datetime
 from loguru import logger
 
 from PIL import Image, ImageEnhance, ImageOps, ExifTags, ImageFilter
 from configparser import ConfigParser, NoSectionError
-from lockfile import write_to_common_file
 from tg_bot import TelegramBot
+from photos_copy_script import FileCopier, read_config
+
 
 class ImageEnhancer:
     def __init__(self, settings):
@@ -69,13 +68,6 @@ class ImageEnhancer:
         return Image.merge('RGB', (r, g, b))
 
     @staticmethod
-    def colorize_image(image):
-        if image.mode != 'L':
-            image = image.convert('L')
-        tinted_image = ImageOps.colorize(image, 'black', 'blue')
-        return tinted_image
-
-    @staticmethod
     def is_black_white(image):
 
         if image.mode != 'RGB':
@@ -122,17 +114,6 @@ class ImageEnhancer:
             else:
                 logger.error(f'not a file: {item_path}')
 
-        try:
-            self.save_enhanced_folders(folder)
-        except Exception as e:
-            logger.error(f'Error saving enhanced folders: {e}')
-
-        return new_folder
-
-    @staticmethod
-    def rename_folder(folder):
-        new_folder = f'{folder}_RS'
-        os.rename(folder, new_folder)
         return new_folder
 
     @staticmethod
@@ -157,143 +138,72 @@ class ImageEnhancer:
 
         logger.debug(f'saved file:{file_path}')
 
-    @staticmethod
-    def print_metadata(image):
-        # Get the original image's EXIF data
-        exif_data = image._getexif()
-
-        # Decode the EXIF data
-        if exif_data is not None:
-            for tag, value in exif_data.items():
-                tag_name = ExifTags.TAGS.get(tag, tag)
-                if tag_name != "MakerNote":
-                    logger.debug(f"{tag_name}: {value}")
-
     def run(self):
         if not os.path.exists(self.photos_path):
             logger.error(f'Folder {self.photos_path} does not exist')
             return
-        today_folders = self.get_folders_modified_today()
-        logger.debug(f'today folders: {today_folders}')
+        today_folders = self.get_ready_folders_list()
+        if not today_folders:
+            return
+
+        self.index_ready_folders(today_folders)
+
         for folder in today_folders:
-            if self.check_not_enhanced_yet(folder):
-                if self.check_folder_not_in_process(folder):
-                    try:
-                        new_folder = self.enhance_folder(folder)
-                        # new_folder = self.rename_folder(folder)
-                        self.chown_folder(new_folder)
-                        self.index_folder(new_folder)
-                    except Exception as e:
-                        logger.error(f'enhance folder {folder} error: {e}')
+            try:
+                new_folder = self.enhance_folder(folder)
+                self.chown_folder(new_folder)
+                self.index_folder(new_folder)
+                self.remove_from_processed_folders(folder.split('/')[-1])
+            except Exception as e:
+                logger.error(f'enhance folder {folder} error: {e}')
 
-    def get_folders_modified_today(self):
-        today = date.today()
+    def index_ready_folders(self, ready_folders):
+        for folder in ready_folders:
+            try:
+                self.index_folder(folder)
+            except Exception as e:
+                logger.error(f'Error indexing folder {folder}: {e}')
 
-        folders_modified_today = []
-        for root, dirs, files in os.walk(self.photos_path):
-            for dir_name in dirs:
-                if re.match(r'^\d{1,2}-\d{1,2}$', dir_name):
-                    dir_path = os.path.join(root, dir_name)
-                    folder_creation_day = date.fromtimestamp(self.get_creation_time(dir_path))
-                    if folder_creation_day == today:
-                        folders_modified_today.append(dir_path)
+    def get_ready_folders_list(self):
 
-        return folders_modified_today
+        ready_folders = []
 
-    @staticmethod
-    def get_creation_time(dir_path):
+        hour_ranges = self.get_hour_ranges_from_processed_folders()
+
+        for hour_range in hour_ranges:
+
+            try:
+                config = read_config(settings_file)
+                file_copier = FileCopier(config)
+                current_month, current_date = file_copier.get_current_month_and_date()
+                folder_path = file_copier.construct_paths(current_month, current_date, hour_range)
+                logger.debug(f'folder path: {folder_path}')
+                if folder_path not in ready_folders:
+                    ready_folders.append(folder_path)
+            except Exception as e:
+                logger.error(f'Error constructing paths: {e}')
+
+        return ready_folders
+
+    def remove_from_processed_folders(self, hour_range):
+        today_folders = self.get_hour_ranges_from_processed_folders()
+        today_folders.remove(hour_range)
+        with open(f'processed_folders_{self.studio}.json', 'w') as f:
+            json.dump(today_folders, f)
+
+    def get_hour_ranges_from_processed_folders(self):
         try:
-            mod_command = ['stat', '-c', '%Y', dir_path]
-            mod_result = subprocess.run(mod_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                        check=True)
-            modification_time_stat = float(mod_result.stdout.strip())
-
-            create_command = ['stat', '-c', '%W', dir_path]
-            create_result = subprocess.run(create_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                           check=True)
-            creation_time_stat = float(create_result.stdout.strip())
-
-            if modification_time_stat < creation_time_stat:
-                return modification_time_stat
-            else:
-                return creation_time_stat
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error get_creation_time: {e}")
-            return None
-
-    def check_not_enhanced_yet(self, folder):
-        if not os.path.exists(folder + "_RS"):
-            return True
-
-    def check_folder_not_in_process(self, folder):
-        already_indexed_list = self.gather_already_indexed()
-        if folder in already_indexed_list:
-            return True
-        else:
-            logger.debug(f'folder: {folder} is not indexed yet')
-
-    @staticmethod
-    def gather_already_indexed():
-        current_directory = os.getcwd()
-        already_indexed_list = []
-        for filename in os.listdir(current_directory):
-            if filename.startswith("processed_folders_"):
-                with open(os.path.join(current_directory, filename), 'r') as file:
-                    data = json.load(file)
-                    already_indexed_list.extend(data.get('already_indexed', []))
-        return already_indexed_list
-
-    def update_enhanced_folders(self):
-        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
-        logger.info(f'update_enhanced_folders current_date(studio timezone): {current_date}')
-        logger.info(f"datetime.now: {datetime.now().strftime('%d.%m')}")
-
-        processed_data = self.load_enhanced_folders()
-        process_date = processed_data.get('date')
-
-        if process_date:
-            if process_date != current_date:
-                self.clear_enhanced_folders()
-
-    @staticmethod
-    def load_enhanced_folders():
-        try:
-            with open('enhanced_folders.json', 'r') as file:
+            with open(f'processed_folders_{self.studio}.json', 'r') as file:
                 data = json.load(file)
                 return data
-        except FileNotFoundError:
-            return {'date': None, 'enhanced_folders': []}
-
-    def save_enhanced_folders(self, enhanced_folder):
-        current_date = datetime.now(self.studio_timezone).strftime('%d.%m')
-        enhanced_folders = self.load_enhanced_folders().get('enhanced_folders') or []
-        enhanced_folders.append(enhanced_folder)
-
-        data = {
-            'date': current_date,
-            'enhanced_folders': list(enhanced_folders),
-        }
-
-        # with open('enhanced_folders.json', 'w') as file:
-        #     json.dump(data, file)
-        try:
-            result = write_to_common_file(data, 'enhanced_folders.json')
-            logger.info(f'write_to_common_file result: {result}')
         except Exception as e:
-            logger.error(f'write_to_common_file error: {e}')
-
-
-
-    @staticmethod
-    def clear_enhanced_folders():
-        write_to_common_file({}, 'enhanced_folders.json')
-        # with open('enhanced_folders.json', 'w') as json_file:
-        #     json.dump({}, json_file)
+            logger.error(f'Error get_hour_ranges_from_processed_folders: {e}')
 
 
 def get_settings_files():
-    settings_files = [os.path.join(os.getcwd(), file) for file
-                      in os.listdir(os.getcwd()) if file.endswith('_config.ini')]
+    # settings_files = [os.path.join(os.getcwd(), file) for file
+    #                   in os.listdir(os.getcwd()) if file.endswith('_config.ini')]
+    settings_files = ['/cloud/copy_script/test_studio_config.ini']
     return settings_files
 
 
@@ -329,7 +239,6 @@ def run_image_enhancer(studio_settings_file: str):
 
         try:
             image_enhancer = ImageEnhancer(studio_settings)
-            image_enhancer.update_enhanced_folders()
             process_name = f"{studio_name}_image_enhancer"
             setproctitle.setproctitle(process_name)
             image_enhancer.run()
@@ -337,10 +246,10 @@ def run_image_enhancer(studio_settings_file: str):
             error_sent = False
         except Exception as e:
             logger.error(f"Error run_image_enhancer: {e}")
-            if not error_sent:
-                tg_bot = TelegramBot()
-                tg_bot.send_message_to_group(f"Error in {studio_name} image enhancer: {e}")
-                error_sent = True
+            # if not error_sent:
+            #     tg_bot = TelegramBot()
+            #     tg_bot.send_message_to_group(f"Error in {studio_name} image enhancer: {e}")
+            #     error_sent = True
             time.sleep(15)
 
 
