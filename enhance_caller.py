@@ -163,9 +163,10 @@ class EnhanceCaller:
 
     def remove_from_processed_folders(self, hour_range):
         today_folders = self.get_hour_ranges_from_processed_folders()
-        today_folders.remove(hour_range)
-        with open(f'processed_folders_{self.studio}.json', 'w') as f:
-            json.dump(today_folders, f)
+        if hour_range in today_folders:
+            today_folders.remove(hour_range)
+            with open(f'processed_folders_{self.studio}.json', 'w') as f:
+                json.dump(today_folders, f)
 
     def get_hour_ranges_from_processed_folders(self):
         try:

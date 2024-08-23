@@ -30,6 +30,7 @@ class ImageEnhancer:
         self.blur_filter = settings['image_settings'].getboolean('BlurFilter')
         self.quality = int(settings['image_settings']['Quality'])
         self.studio_timezone = pytz.timezone(settings['path_settings']['TimeZoneName'])
+        self.settings = settings
 
     def enhance_image(self, im, black_white=None):
         if im.mode != 'RGB':
@@ -143,6 +144,7 @@ class ImageEnhancer:
             logger.error(f'Folder {self.photos_path} does not exist')
             return
         today_folders = self.get_ready_folders_list()
+        logger.debug(f'folders to enhance: {today_folders}')
         if not today_folders:
             return
 
@@ -171,12 +173,13 @@ class ImageEnhancer:
         hour_ranges = self.get_hour_ranges_from_processed_folders()
 
         for hour_range in hour_ranges:
-
             try:
-                config = read_config(settings_file)
+                config = self.settings['path_settings']
+                logger.debug(f'studio: {config["Studio_name"]}')
                 file_copier = FileCopier(config)
                 current_month, current_date = file_copier.get_current_month_and_date()
                 folder_path = file_copier.construct_paths(current_month, current_date, hour_range)
+
                 logger.debug(f'folder path: {folder_path}')
                 if folder_path not in ready_folders:
                     ready_folders.append(folder_path)
