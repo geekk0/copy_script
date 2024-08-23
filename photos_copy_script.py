@@ -81,6 +81,7 @@ class FileCopier:
             try:
                 os.makedirs(destination_path, exist_ok=True)
                 self.change_month_permissions(month_path)
+                self.change_ownership(destination_path)
             except Exception as e:
                 logger.error(f"Error creating folder '{destination_path}': {e}")
 
