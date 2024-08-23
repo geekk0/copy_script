@@ -99,7 +99,10 @@ class FileCopier:
 
         unprocessed_files = False
 
-        self.change_ownership(base_path)
+        try:
+            self.change_ownership(base_path)
+        except Exception as e:
+            logger.error(f"Error changing ownership (process files) of '{base_path}': {e}")
 
         for filename in os.listdir(base_path):
 
