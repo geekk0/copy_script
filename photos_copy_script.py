@@ -101,6 +101,7 @@ class FileCopier:
 
         try:
             self.change_ownership(base_path)
+            self.run_index(base_path)
         except Exception as e:
             logger.error(f"Error changing ownership (process files) of '{base_path}': {e}")
 
