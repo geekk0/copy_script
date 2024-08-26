@@ -129,6 +129,7 @@ class EnhanceCaller:
                     self.chown_folder(new_folder)
                     self.index_folder(new_folder)
                     self.remove_from_ai_queue(folder)
+                    self.remove_from_processed_folders(folder.split('/')[-1])
             except Exception as e:
                 logger.error(f'enhance folder {folder} error: {e}')
 
