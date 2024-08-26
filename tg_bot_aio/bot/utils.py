@@ -96,7 +96,6 @@ async def change_ownership(path, user='www-data', group='www-data'):
         logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
 
 
-
 async def change_folder_permissions(folder):
     command = f'sudo chmod -R g+w "{folder}"'
     os.system(command)

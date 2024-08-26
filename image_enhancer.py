@@ -165,6 +165,7 @@ class ImageEnhancer:
     def index_ready_folders(self, ready_folders):
         for folder in ready_folders:
             try:
+                self.chown_folder(folder)
                 self.index_folder(folder)
             except Exception as e:
                 logger.error(f'Error indexing folder {folder}: {e}')
