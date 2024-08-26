@@ -79,6 +79,9 @@ class ImageEnhancer:
         return True if len(colors) < 600 else False
 
     def enhance_folder(self, folder):
+        if not os.path.exists(folder):
+            self.remove_from_processed_folders(folder.split('/')[-1])
+            return
         logger.debug(f'enhance folder: {folder}')
         new_folder = folder + '_RS'
         if not os.path.exists(new_folder):

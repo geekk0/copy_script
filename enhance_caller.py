@@ -47,6 +47,9 @@ class EnhanceCaller:
 
     def enhance_folder(self, folder, action):
 
+        if not os.path.exists(folder):
+            self.remove_from_processed_folders(folder)
+
         enhance_folder_url = self.api_url + "/enhance_folder/"
 
         data = {

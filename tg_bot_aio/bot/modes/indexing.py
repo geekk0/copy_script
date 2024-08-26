@@ -11,7 +11,8 @@ from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
 from ..utils import (run_indexing, check_ready_for_index,
-                     change_ownership, add_to_ai_queue, run_rs_enhance)
+                     change_ownership, change_folder_permissions,
+                     add_to_ai_queue, run_rs_enhance)
 
 
 class IndexingForm(StatesGroup):
@@ -73,6 +74,7 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text="Проверка папки, это займет до 10 секунд...")
         if await check_ready_for_index(path):
             await change_ownership(path)
+            await change_folder_permissions(path)
             result = await run_indexing(path)
             await state.clear()
             kb = await create_kb(mode_names, mode_names * len(mode_names))
