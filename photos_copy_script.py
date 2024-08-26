@@ -80,10 +80,13 @@ class FileCopier:
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path, exist_ok=True)
-                self.change_month_permissions(month_path)
-                self.change_ownership(destination_path)
+
             except Exception as e:
                 logger.error(f"Error creating folder '{destination_path}': {e}")
+
+        self.change_folder_permissions(month_path)
+        self.change_ownership(destination_path)
+        # self.run_index(destination_path)
 
         try:
             shutil.move(source_file, destination_file)
@@ -101,6 +104,7 @@ class FileCopier:
 
         try:
             self.change_ownership(base_path)
+            self.change_folder_permissions(base_path)
             self.run_index(base_path)
         except Exception as e:
             logger.error(f"Error changing ownership (process files) of '{base_path}': {e}")
@@ -354,8 +358,8 @@ class FileCopier:
             logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
 
     @staticmethod
-    def change_month_permissions(month_path):
-        command = f'sudo chmod -R g+w "{month_path}"'
+    def change_folder_permissions(folder):
+        command = f'sudo chmod -R g+w "{folder}"'
         os.system(command)
 
     def get_folder_url(self, folder):
