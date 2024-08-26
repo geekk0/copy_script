@@ -28,8 +28,6 @@ class EnhanceCaller:
             logger.error(f'Folder {self.photos_path} does not exist')
             return
         today_folders = self.get_ready_folders_list()
-        if not today_folders:
-            return
 
         self.index_ready_folders(today_folders)
 
