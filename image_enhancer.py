@@ -81,6 +81,7 @@ class ImageEnhancer:
     def enhance_folder(self, folder):
         if not os.path.exists(folder):
             self.remove_from_processed_folders(folder.split('/')[-1])
+            logger.info(f'Hour range {folder.split('/')[-1]} of folder {folder} removed from processed folders')
             return
         logger.debug(f'enhance folder: {folder}')
         new_folder = folder + '_RS'
