@@ -29,6 +29,8 @@ class EnhanceCaller:
             return
         today_folders = self.get_ready_folders_list()
 
+        logger.debug(f'today_folders: {today_folders}')
+
         self.index_ready_folders(today_folders)
 
         for folder in today_folders:
@@ -47,9 +49,9 @@ class EnhanceCaller:
     def enhance_folder(self, folder, action):
 
         if not os.path.exists(folder):
-            self.remove_from_processed_folders(folder)
-            logger.info(f'Hour range {folder.split('/')[-1]} of folder {folder} removed from processed folders')
-
+            # self.remove_from_processed_folders(folder)
+            # logger.info(f'Hour range {folder.split('/')[-1]} of folder {folder} removed from processed folders')
+            return
 
         enhance_folder_url = self.api_url + "/enhance_folder/"
 
