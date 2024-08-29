@@ -24,6 +24,8 @@ def main():
         settings_file = os.path.join('/cloud/copy_script', settings_file)
 
     enhancer = ImageEnhancer(read_settings_file(settings_file))
+    enhancer.chown_folder(folder_path)
+    enhancer.index_folder(folder_path)
     new_folder = enhancer.enhance_folder(folder_path)
     enhancer.chown_folder(new_folder)
     enhancer.index_folder(new_folder)
