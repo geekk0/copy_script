@@ -81,19 +81,8 @@ async def read_settings_file(settings_file):
 
 
 async def change_ownership(path, user='www-data', group='www-data'):
-    directory_path = path
-    try:
-        uid = pwd.getpwnam(user).pw_uid
-        gid = grp.getgrnam(group).gr_gid
-
-        while directory_path != '/':
-            os.chown(directory_path, uid, gid)
-            directory_path = os.path.dirname(directory_path)
-
-        logger.info(f"Ownership successfully changed")
-
-    except Exception as e:
-        logger.error(f"Error changing ownership of '{directory_path}' and its parent directories: {e}")
+    command = f'sudo chown -R www-data:www-data "{path}"'
+    os.system(command)
 
 
 async def change_folder_permissions(folder):
