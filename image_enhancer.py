@@ -122,6 +122,15 @@ class ImageEnhancer:
         return new_folder
 
     @staticmethod
+    def check_full_folder(folder_path):
+        num_source_files = len([f for f in os.listdir(folder_path)
+                                if os.path.isfile(os.path.join(folder_path, f))])
+        num_enhanced_files = len([f for f in os.listdir(folder_path + '_RS')
+                                if os.path.isfile(os.path.join(folder_path + '_RS', f))])
+        if num_enhanced_files >= num_source_files:
+            return True
+
+    @staticmethod
     def chown_folder(folder_path):
         command = f'sudo chown -R www-data:www-data "{folder_path}"'
         os.system(command)
@@ -157,9 +166,17 @@ class ImageEnhancer:
         for folder in today_folders:
             try:
                 new_folder = self.enhance_folder(folder)
+                folder_is_full = self.check_full_folder(folder)
+
+                logger.info(f'folder {folder} is_full: {folder_is_full}')
+                logger.info(f'new_folder: {new_folder}')
+
+                if not (new_folder and folder_is_full):
+                    continue
                 self.chown_folder(new_folder)
                 self.index_folder(new_folder)
                 self.remove_from_processed_folders(folder.split('/')[-1])
+
             except Exception as e:
                 logger.error(f'enhance folder {folder} error: {e}')
 

@@ -128,12 +128,19 @@ class EnhanceCaller:
                 action = self.get_folder_action(folder)
                 new_folder = self.enhance_folder(folder, action)
                 logger.info(f'NEW folder is: {new_folder}')
+                folder_is_full = self.check_full_folder(folder)
 
-                if new_folder:
-                    self.chown_folder(new_folder)
-                    self.index_folder(new_folder)
-                    self.remove_from_ai_queue(folder)
-                    self.remove_from_processed_folders(folder.split('/')[-1])
+                logger.info(f'folder {folder} is_full: {folder_is_full}')
+                logger.info(f'new_folder: {new_folder}')
+
+                if not (new_folder and folder_is_full):
+                    continue
+
+                self.chown_folder(new_folder)
+                self.index_folder(new_folder)
+                self.remove_from_ai_queue(folder)
+                self.remove_from_processed_folders(folder.split('/')[-1])
+
             except Exception as e:
                 logger.error(f'enhance folder {folder} error: {e}')
 
@@ -156,6 +163,15 @@ class EnhanceCaller:
                 logger.error(f'Error constructing paths: {e}')
 
         return ready_folders
+
+    @staticmethod
+    def check_full_folder(folder_path):
+        num_source_files = len([f for f in os.listdir(folder_path)
+                                if os.path.isfile(os.path.join(folder_path, f))])
+        num_enhanced_files = len([f for f in os.listdir(folder_path + '_AI')
+                                if os.path.isfile(os.path.join(folder_path + '_AI', f))])
+        if num_enhanced_files >= num_source_files:
+            return True
 
     @staticmethod
     def chown_folder(folder_path):
