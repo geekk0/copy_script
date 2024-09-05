@@ -57,6 +57,7 @@ async def get_studio_config_file(studio):
             'Силуэт': 'silhouette_config.ini',
             'Reflect KZ': 'kz_config.ini',
             'test_studio': 'test_studio_config.ini',
+            'Neo': 'neo_config.ini'
     }
 
     studio_config_file_path = (os.path.join(f'/cloud/copy_script',

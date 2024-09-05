@@ -86,7 +86,8 @@ class EnhanceCaller:
         config_file_mapping = {
             'Силуэт': 'silhouette_config.ini',
             'Отражение': 'reflect_config.ini',
-            'Reflect KZ': 'kz_config.ini'
+            'Reflect KZ': 'kz_config.ini',
+            'Neo': 'neo_config.ini'
         }
 
         folder_config_file = config_file_mapping[folder.split('/')[-4]]
