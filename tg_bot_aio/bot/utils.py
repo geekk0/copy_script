@@ -17,6 +17,7 @@ load_dotenv()
 
 sudo_password = environ.get('SUDOP')
 
+
 async def run_indexing(path):
     path = path.replace('/cloud', '')
     command = f"echo {sudo_password} | sudo -S -u www-data php /var/www/cloud/occ files:scan -p '{path}' --shallow"

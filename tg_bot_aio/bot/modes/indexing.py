@@ -6,7 +6,7 @@ from aiogram.types import Message, ChatPhoto
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
-from ..bot_setup import form_router
+from ..bot_setup import form_router, logger
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
@@ -30,7 +30,9 @@ async def start_index_mode(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text=f"{mode}, выберите студию", reply_markup=studios_kb)
 
 
-async def process_step(callback: CallbackQuery, state: FSMContext, next_state: State, text_template: str):
+async def process_step(callback: CallbackQuery, state: FSMContext,
+                       next_state: State,
+                       text_template: str):
     data = await state.get_data()
     studio = data.get('studio')
     path = os.path.join(data.get('path'), callback.data)
@@ -38,6 +40,7 @@ async def process_step(callback: CallbackQuery, state: FSMContext, next_state: S
 
     folders_list = sorted([entry for entry in os.listdir(path)
                            if os.path.isdir(os.path.join(path, entry))])
+
     folders_kb = await create_kb(folders_list, folders_list * len(folders_list))
     await state.set_state(next_state)
     await callback.message.edit_text(text=text_template.format(studio), reply_markup=folders_kb)
@@ -47,6 +50,17 @@ async def process_step(callback: CallbackQuery, state: FSMContext, next_state: S
 async def process_studio(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     await state.update_data(studio=callback.data)
+
+    path = os.path.join(data.get('path'), callback.data)
+
+    logger.debug(f'path: {path}')
+
+    await change_ownership(path)
+    await change_folder_permissions(path)
+    result = await run_indexing(path)
+
+    logger.debug(result)
+
     await process_step(callback, state, IndexingForm.month, f"{data.get('mode')}, выберите месяц")
 
 
