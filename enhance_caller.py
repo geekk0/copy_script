@@ -80,22 +80,25 @@ class EnhanceCaller:
 
     def get_folder_action(self, folder):
 
-        if folder.split('/')[-4] == self.studio:
-            return self.action
+        try:
+            if folder.split('/')[-4] == self.studio:
+                return self.action
 
-        config_file_mapping = {
-            'Силуэт': 'silhouette_config.ini',
-            'Отражение': 'reflect_config.ini',
-            'Reflect KZ': 'kz_config.ini',
-            'Neo': 'neo_config.ini'
-        }
+            config_file_mapping = {
+                'Силуэт': 'silhouette_config.ini',
+                'Отражение': 'reflect_config.ini',
+                'Reflect KZ': 'kz_config.ini',
+                'Neo': 'neo_config.ini'
+            }
 
-        folder_config_file = config_file_mapping[folder.split('/')[-4]]
+            folder_config_file = config_file_mapping[folder.split('/')[-4]]
 
-        action = read_settings_file(
-            os.path.join(os.getcwd(), folder_config_file))['enhance_settings'].get('action')
+            action = read_settings_file(
+                os.path.join(os.getcwd(), folder_config_file))['enhance_settings'].get('action')
 
-        return action
+            return action
+        except Exception as e:
+            logger.error(f'Error get_folder_action: {e}')
 
     def add_to_ai_queue(self, folder):
         ai_index_queue = self.get_ai_queue()
@@ -127,6 +130,7 @@ class EnhanceCaller:
             try:
                 logger.info(f'folder is: {folder}')
                 action = self.get_folder_action(folder)
+                logger.debug(f'action: {action}')
                 new_folder = self.enhance_folder(folder, action)
                 logger.info(f'NEW folder is: {new_folder}')
                 folder_is_full = self.check_full_folder(folder)
