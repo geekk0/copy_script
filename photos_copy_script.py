@@ -126,18 +126,18 @@ class FileCopier:
                 self.file_destination_hour_range = None
                 unprocessed_files = True
             else:
-
-                self.file_destination_hour_range = self.get_hour_range_from_creation_time(source_file)
+                (file_creation_month,
+                 file_creation_date,
+                 self.file_destination_hour_range) = self.get_file_creation_info(source_file)
 
                 if not self.file_destination_hour_range:
                     continue
 
-                current_month, current_date = self.get_current_month_and_date()
-                destination_path = self.construct_paths(current_month,
-                                                        current_date,
+                destination_path = self.construct_paths(file_creation_month,
+                                                        file_creation_date,
                                                         self.file_destination_hour_range)
                 month_path = os.path.join(self.config["BaseDirPath"],
-                                          f'{current_month} {self.config["Studio_name"].upper()}')
+                                          f'{file_creation_month} {self.config["Studio_name"].upper()}')
 
                 try:
                     if self.check_first_file_timestamp(destination_path, source_file):
@@ -313,15 +313,17 @@ class FileCopier:
         new_path = path.split('/files/')[1]
         return new_path
 
-    def get_hour_range_from_creation_time(self, file_path):
+    def get_file_creation_info(self, file_path):
         try:
             creation_time = self.get_creation_time(file_path)
             creation_datetime = datetime.fromtimestamp(creation_time, self.studio_timezone)
             hour_range = f"{creation_datetime.hour}-{creation_datetime.hour + 1}"
-            return hour_range
+            creation_month = self.translate_month_to_russian(creation_datetime.strftime('%B'))
+            creation_date = creation_datetime.strftime('%d.%m')
+            return creation_month, creation_date, hour_range
         except Exception as e:
             logger.error(f"Error retrieving creation time for '{file_path}': {e}")
-            return None
+            return None, None, None
 
     @staticmethod
     def get_creation_time(file_path):
