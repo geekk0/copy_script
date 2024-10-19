@@ -6,6 +6,7 @@ from aiogram.types import Message, ChatPhoto
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..middleware import ChatIDChecker
+from ..bot_setup import form_router, logger
 from ..bot_setup import logger, form_router, sessions, bot
 from ..utils import share_video
 
@@ -21,6 +22,7 @@ async def start_sharing_mode(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text=f"{mode}, введите название видео с расширением")
 
 
+@form_router.callback_query(SharingForm.send_share_link)
 async def get_video_name(message: Message, state: FSMContext):
     name = message.text
     result = await share_video(name)
