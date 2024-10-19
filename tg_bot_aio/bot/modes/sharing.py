@@ -22,12 +22,13 @@ async def start_sharing_mode(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text=f"{mode}, введите название видео с расширением")
 
 
-@form_router.callback_query(SharingForm.send_share_link)
+@form_router.message(SharingForm.send_share_link)
 async def get_video_name(message: Message, state: FSMContext):
     name = message.text
     result = await share_video(name)
     if result:
-        await message.answer(text="Ссылка на воспроизведение: " + result)
+        await message.answer(f'[{result}]({result})', parse_mode='Markdown')
+
     else:
         await message.answer(text="Проверьте наличие этого видео в папке")
 

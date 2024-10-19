@@ -185,13 +185,19 @@ async def share_video(name):
     share_request = requests.Request('POST',
                                      f'https://cloud.reflect-studio.ru/ocs/v2.php/apps/files_sharing/api/v1/shares',
                                      headers={'OCS-APIRequest': 'true'},
-                                     data={'path': f'Videos_sharing{name}', 'shareType': '3', 'permissions': '1'},
+                                     data={'path': f'Videos_sharing/{name}', 'shareType': '3', 'permissions': '1'},
                                      auth=(username, password))
+
     prepared_request = share_request.prepare()
+
     try:
         response = requests.Session().send(prepared_request)
-        result = await parse_sharing(response)
-        return result
+
+        logger.info(f'response: {response.status_code}, {response.text}')
+
+        url = await parse_sharing(response)
+        if url:
+            return await format_video_url(url, name)
     except Exception as e:
         logger.error(f'Error sending share request: {e}, name: {name}')
         return False
@@ -205,6 +211,11 @@ async def parse_sharing(response):
     url_tag = soup.find('url')
     if url_tag is not None:
         url_value = url_tag.text
-        return url_value
+        return f'{url_value}'
+
+
+async def format_video_url(url, name):
+    return f'{url}/download/{name}'
+
 
 
