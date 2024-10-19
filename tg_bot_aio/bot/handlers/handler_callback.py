@@ -11,6 +11,7 @@ from ..middleware import ChatIDChecker
 from ..service import studio_path, studio_names, mode_names
 from ..sessions import Session
 from ..modes.indexing import start_index_mode
+from ..modes.sharing import start_sharing_mode
 from ..modes.enhance_config import start_enhance_mode
 from ..keyboards import enhance_rs_kb
 
@@ -24,6 +25,8 @@ async def handle_mode_callback(callback: CallbackQuery, state: FSMContext):
         await start_index_mode(callback, state)
     elif mode == "Обработка:настройки":
         await start_enhance_mode(callback, state)
+    elif mode == "Ссылка на видео":
+        await start_sharing_mode(callback, state)
     elif mode == "Рассылка":
         await callback.message.edit_text(text="Управление рассылкой в данный момент не поддерживается")
 

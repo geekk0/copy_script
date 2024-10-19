@@ -6,10 +6,11 @@ import pwd
 import grp
 import json
 import time
-
+import requests
 
 from os import environ
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 from .bot_setup import logger
 
@@ -175,4 +176,35 @@ async def run_rs_enhance(folder_path):
         logger.info(f"RS enhance started. returncode: {result.returncode }")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error executing command: {e}")
+
+
+async def share_video(name):
+    username = environ.get('username')
+    password = environ.get('password')
+
+    share_request = requests.Request('POST',
+                                     f'https://cloud.reflect-studio.ru/ocs/v2.php/apps/files_sharing/api/v1/shares',
+                                     headers={'OCS-APIRequest': 'true'},
+                                     data={'path': f'Videos_sharing{name}', 'shareType': '3', 'permissions': '1'},
+                                     auth=(username, password))
+    prepared_request = share_request.prepare()
+    try:
+        response = requests.Session().send(prepared_request)
+        result = await parse_sharing(response)
+        return result
+    except Exception as e:
+        logger.error(f'Error sending share request: {e}, name: {name}')
+        return False
+
+
+async def parse_sharing(response):
+    if response.status_code != 200:
+        return False
+    soup = BeautifulSoup(response.content, 'xml')
+
+    url_tag = soup.find('url')
+    if url_tag is not None:
+        url_value = url_tag.text
+        return url_value
+
 
