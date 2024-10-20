@@ -24,6 +24,7 @@ class IndexingForm(StatesGroup):
 
 async def start_index_mode(callback: CallbackQuery, state: FSMContext):
     mode = callback.data
+    logger.info(f'mode: {mode}')
     await state.update_data(mode=mode, path='/cloud/reflect/files')
     await state.set_state(IndexingForm.studio)
     studios_kb = await create_kb(studio_names, studio_names * len(studio_names))
@@ -52,8 +53,6 @@ async def process_studio(callback: CallbackQuery, state: FSMContext):
     await state.update_data(studio=callback.data)
 
     path = os.path.join(data.get('path'), callback.data)
-
-    logger.debug(f'path: {path}')
 
     await change_ownership(path)
     await change_folder_permissions(path)
@@ -95,7 +94,7 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(text=f"{path}: {result}", reply_markup=kb)
         else:
             await callback.message.answer(text="Файлы еще копируются")
-    elif data.get('mode') == 'ИИ обработка':
+    elif data.get('mode') == 'ИИ Обработка':
         await add_to_ai_queue(path)
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
 
@@ -105,7 +104,5 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(text=f"Обработка папки {path} \n запущена")
         except Exception as e:
             await callback.message.edit_text(text=f"Ошибка обработки: {e}")
-
-
 
 form_router.message.middleware(ChatIDChecker())
