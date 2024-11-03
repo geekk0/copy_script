@@ -1,5 +1,6 @@
 import os
 import json
+import signal
 import time
 
 import pytz
@@ -273,7 +274,15 @@ def run_enh_callers_for_host(host):
         time.sleep(10)
 
 
+def signal_handler(sig, frame):
+    logger.info(f'Signal {sig} received. Stopping threads...')
+    stop_event.set()  # Signal threads to stop
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     threads = []
     for host in enhancer_host_list:
         thread = threading.Thread(target=run_enh_callers_for_host, args=(host,))
@@ -283,14 +292,10 @@ if __name__ == '__main__':
     try:
         for thread in threads:
             thread.join()
-    except KeyboardInterrupt:
-            logger.info("KeyboardInterrupt received. Stopping threads...")
-            stop_event.set()
-    except SystemExit:
-        logger.info("SystemExit received. Exiting gracefully...")
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
+            logger.error(f"An unexpected error occurred: {e}")
     finally:
+        logger.info("Cleaning up resources before exiting...")
         stop_event.set()
         for thread in threads:
             thread.join()
