@@ -6,15 +6,14 @@ import requests
 
 from os import environ
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class YclientsService:
     base_url = 'https://api.yclients.com/api/v1'
 
-    def __init__(self, studio_name):
+    def __init__(self, studio_id):
         load_dotenv()
-        self.studio_name = studio_name
         self.login = environ.get('YCLIENTS_LOGIN')
         self.password = environ.get('YCLIENTS_PASSWORD')
         self.user_token = environ.get('YCLIENTS_USER_TOKEN')
@@ -23,13 +22,7 @@ class YclientsService:
         self.response = None
         self.error = None
         self.client_info = None
-
-        self.studios_ids = {
-            'Портрет(ЗАЛ)': environ.get('PORTRAIT_STUDIO_ID'),
-            'Силуэт': environ.get('SILHOUETTE_STUDIO_ID'),
-            'Отражение': environ.get('REFLECT_STUDIO_ID')
-        }
-        self.studio_id = self.studios_ids[self.studio_name]
+        self.studio_id = studio_id
 
     def get_user_token(self):
         url = self.base_url + '/auth'
@@ -280,5 +273,77 @@ class YclientsService:
 
         response = requests.post(url, headers=headers, data=json.dumps(body))
 
+    def get_transactions_list(self, yesterday=None):
+        url = self.base_url + '/storages/' + 'transactions/' + self.company_id
 
+        yesterday = datetime.now() - timedelta(days=1)
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + self.partner_token + ', User ' + self.user_token,
+            'Accept': 'application/vnd.yclients.v2+json'
+        }
+
+        params = {
+            'count': 100
+        }
+
+        if yesterday:
+            params['start_date']= yesterday.strftime('%Y-%m-%d')
+            params['end_date'] = yesterday.strftime('%Y-%m-%d')
+
+        request = requests.Request(method='GET', url=url, headers=headers, params=params)
+        prepared_request = request.prepare()
+        session = requests.Session()
+
+        response = session.send(prepared_request)
+
+        return response
+
+    def get_clients_info(self, clients_ids: list = None):
+        url = self.base_url + '/company/' + self.company_id + '/clients/search'
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + self.partner_token + ', User ' + self.user_token,
+            'Accept': 'application/vnd.yclients.v2+json'
+        }
+
+        body = {}
+
+        if clients_ids:
+            body = {
+                "fields": ["id","name", "email"],
+                "filters": [
+                    {
+                        "type": "id",
+                        "state":
+                        {
+                            "value": clients_ids
+                        }
+                    }
+                ]
+            }
+
+        response = requests.post(url, headers=headers, data=json.dumps(body))
+
+        return response
+
+    def get_client_certificate(self, client_phone):
+        url = self.base_url + '/loyalty/certificates/'
+
+        params = {
+            'company_id': self.company_id,
+            'phone': client_phone
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + self.partner_token + ', User ' + self.user_token,
+            'Accept': 'application/vnd.yclients.v2+json'
+        }
+
+        response = requests.get(url, params=params, headers=headers)
+
+        return response
 

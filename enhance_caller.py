@@ -4,12 +4,16 @@ import time
 
 import pytz
 import requests
+import threading
 
 from configparser import ConfigParser
 from loguru import logger
 
 from photos_copy_script import FileCopier, read_config
 
+exclusive_lock = threading.Lock()
+stop_event = threading.Event()
+enhancer_host_list = ['http://192.168.0.178:8000']
 
 class EnhanceCaller:
 
@@ -206,7 +210,8 @@ class EnhanceCaller:
 
 
 def get_settings_files():
-    settings_files = [os.path.join(os.getcwd(), 'portrait_config.ini')]
+    settings_files = [os.path.join(os.getcwd(), 'portrait_config.ini'),
+                       os.path.join(os.getcwd(), 'neo_config.ini'),]
     return settings_files
 
 
@@ -222,21 +227,72 @@ def read_settings_file(settings_file):
             return {'path_settings': path_settings}
 
 
-if __name__ == '__main__':
-    while True:
+def run_enhance_caller(settings, use_lock=False):
+    studio_name = settings.get('path_settings', {}).get('studio_name')
+
+    handler_id = logger.add(
+        f"{studio_name}_enhance_caller.log",
+        format="{time} {level} {message}",
+        rotation="1 MB",
+        compression='zip',
+        level="DEBUG"
+    )
+
+    if use_lock:
+        with exclusive_lock:
+            enhance_caller = EnhanceCaller(settings)
+            enhance_caller.run()
+    else:
+        enhance_caller = EnhanceCaller(settings)
+        enhance_caller.run()
+
+    logger.remove(handler_id)
+
+
+def run_enh_callers_for_host(host):
+    logger.info(f'caller for host: {host} started...')
+    while not stop_event.is_set():
         studios_settings_files = get_settings_files()
         for settings_file in studios_settings_files:
             settings = read_settings_file(settings_file)
-            if settings.get('enhance_settings').get('action'):
-                studio_name = settings.get('path_settings').get('studio_name')
+            if ((not settings.get('enhance_settings').get('action')) or
+                    (host != settings['enhance_settings']['api_url'])):
+                continue
+            studio_name = settings.get('path_settings').get('studio_name')
 
-                handler_id = logger.add(f"{studio_name}enhance_caller.log",
-                           format="{time} {level} {message}",
-                           rotation="1 MB",
-                           compression='zip',
-                           level="DEBUG")
+            handler_id = logger.add(f"{studio_name}_enhance_caller.log",
+                                    format="{time} {level} {message}",
+                                    rotation="1 MB",
+                                    compression='zip',
+                                    level="DEBUG")
 
-                enhance_caller = EnhanceCaller(settings)
-                enhance_caller.run()
-                logger.remove(handler_id)
+            enhance_caller = EnhanceCaller(settings)
+            enhance_caller.run()
+            logger.remove(handler_id)
+
         time.sleep(10)
+
+
+if __name__ == '__main__':
+    threads = []
+    for host in enhancer_host_list:
+        thread = threading.Thread(target=run_enh_callers_for_host, args=(host,))
+        thread.start()
+        threads.append(thread)
+
+    try:
+        for thread in threads:
+            thread.join()
+    except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received. Stopping threads...")
+            stop_event.set()
+    except SystemExit:
+        logger.info("SystemExit received. Exiting gracefully...")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+    finally:
+        stop_event.set()
+        for thread in threads:
+            thread.join()
+        logger.info("All threads have completed. Exiting service.")
+
