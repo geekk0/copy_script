@@ -15,6 +15,13 @@ exclusive_lock = threading.Lock()
 stop_event = threading.Event()
 enhancer_host_list = ['http://192.168.0.178:8000']
 
+config_file_mapping = {
+                'Силуэт': 'silhouette_config.ini',
+                'Отражение': 'reflect_config.ini',
+                'Reflect KZ': 'kz_config.ini',
+                'Neo': 'neo_config.ini'
+            }
+
 class EnhanceCaller:
 
     def __init__(self, settings, base_path=None):
@@ -25,6 +32,7 @@ class EnhanceCaller:
         self.api_url = settings['enhance_settings']['api_url']
         self.action = settings['enhance_settings']['action']
         self.base_path = base_path or os.getcwd()
+        self.config = settings
 
     def run(self):
 
@@ -87,13 +95,6 @@ class EnhanceCaller:
         try:
             if folder.split('/')[-4] == self.studio:
                 return self.action
-
-            config_file_mapping = {
-                'Силуэт': 'silhouette_config.ini',
-                'Отражение': 'reflect_config.ini',
-                'Reflect KZ': 'kz_config.ini',
-                'Neo': 'neo_config.ini'
-            }
 
             folder_config_file = config_file_mapping[folder.split('/')[-4]]
 
@@ -161,8 +162,7 @@ class EnhanceCaller:
         for hour_range in hour_ranges:
 
             try:
-                config = read_config(settings_file)
-                file_copier = FileCopier(config)
+                file_copier = FileCopier(self.config)
                 current_month, current_date = file_copier.get_current_month_and_date()
                 folder_path = file_copier.construct_paths(current_month, current_date, hour_range)
                 logger.debug(f'folder path: {folder_path}')
