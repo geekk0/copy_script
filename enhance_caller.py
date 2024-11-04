@@ -122,10 +122,10 @@ class EnhanceCaller:
 
     def get_ai_queue(self):
         if not os.path.exists(self.ai_queue_file):
-            with open(os.path.exists(self.ai_queue_file), 'w') as f:
+            with open(self.ai_queue_file, 'w') as f:
                 json.dump([], f)
                 return []
-        with open(os.path.exists(self.ai_queue_file), 'r') as f:
+        with open(self.ai_queue_file, 'r') as f:
             return json.load(f)
 
     def remove_from_ai_queue(self, folder):
