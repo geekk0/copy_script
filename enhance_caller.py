@@ -291,7 +291,7 @@ if __name__ == '__main__':
 
     threads = []
     for host in enhancer_host_list:
-        thread = threading.Thread(target=run_enh_callers_for_host, args=(host,))
+        thread = threading.Thread(name=f"EnhancerThread-{host}", target=run_enh_callers_for_host, args=(host,))
         thread.start()
         threads.append(thread)
 
