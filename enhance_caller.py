@@ -23,6 +23,11 @@ config_file_mapping = {
                 'Neo': 'neo_config.ini'
             }
 
+queue_files_mapping = {
+    'http://192.168.0.178:8000': 'ai_enhance_queue_ph_1.json',
+    'http://192.168.0.199:8000': 'ai_enhance_queue_ph_2.json'
+}
+
 class EnhanceCaller:
 
     def __init__(self, settings, base_path=None):
@@ -34,6 +39,7 @@ class EnhanceCaller:
         self.action = settings['enhance_settings']['action']
         self.base_path = base_path or os.getcwd()
         self.config = settings
+        self.ai_queue_file = os.path.join(self.base_path, queue_files_mapping[self.api_url])
 
     def run(self):
 
@@ -111,22 +117,22 @@ class EnhanceCaller:
         if folder in ai_index_queue:
             return
         ai_index_queue.append(folder)
-        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+        with open(self.ai_queue_file, 'w') as f:
             json.dump(ai_index_queue, f)
 
     def get_ai_queue(self):
-        if not os.path.exists(os.path.join(self.base_path, 'ai_enhance_queue.json')):
-            with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+        if not os.path.exists(self.ai_queue_file):
+            with open(os.path.exists(self.ai_queue_file), 'w') as f:
                 json.dump([], f)
                 return []
-        with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'r') as f:
+        with open(os.path.exists(self.ai_queue_file), 'r') as f:
             return json.load(f)
 
     def remove_from_ai_queue(self, folder):
         ai_index_queue = self.get_ai_queue()
         if folder in ai_index_queue:
             ai_index_queue.remove(folder)
-            with open(os.path.join(self.base_path, 'ai_enhance_queue.json'), 'w') as f:
+            with open(self.ai_queue_file, 'w') as f:
                 json.dump(ai_index_queue, f)
 
     def run_ai_enhance_queue(self):

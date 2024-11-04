@@ -18,6 +18,11 @@ load_dotenv()
 
 sudo_password = environ.get('SUDOP')
 
+queue_files_mapping = {
+    'http://192.168.0.178:8000': 'ai_enhance_queue_ph_1.json',
+    'http://192.168.0.199:8000': 'ai_enhance_queue_ph_2.json'
+}
+
 
 async def run_indexing(path):
     path = path.replace('/cloud', '')
@@ -125,24 +130,23 @@ async def write_settings_file(config_file, key, value):
         config.write(file)
 
 
-async def add_to_ai_queue(folder):
-    ai_index_queue = await get_ai_queue()
-    print(ai_index_queue)
+async def add_to_ai_queue(folder, studio_name):
+    ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
+    ai_index_queue = await get_ai_queue(ai_queue_file_path)
     if folder in ai_index_queue:
         print('Already in queue')
         return
     ai_index_queue.insert(0, folder)
-    with open('/cloud/copy_script/ai_enhance_queue.json', 'w') as f:
+    with open(ai_queue_file_path, 'w') as f:
         json.dump(ai_index_queue, f)
 
 
-async def get_ai_queue():
-    file_path = '/cloud/copy_script/ai_enhance_queue.json'
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as f:
+async def get_ai_queue(ai_queue_file_path):
+    if not os.path.exists(ai_queue_file_path):
+        with open(ai_queue_file_path, 'w') as f:
             json.dump([], f)
             return []
-    with open(file_path, 'r') as f:
+    with open(ai_queue_file_path, 'r') as f:
          return json.load(f)
 
 
@@ -155,7 +159,9 @@ async def run_rs_enhance(folder_path):
     config_file_mapping = {
         'Силуэт': 'silhouette_config.ini',
         'Отражение': 'reflect_config.ini',
-        'Reflect KZ': 'kz_config.ini'
+        'Reflect KZ': 'kz_config.ini',
+        'Neo': 'neo_config.ini',
+        'Портрет(ЗАЛ)': 'portrait_config.ini'
     }
 
     hour_range = folder_path.split("/")[-1]
@@ -218,4 +224,8 @@ async def format_video_url(url, name):
     return f'{url}/download/{name}'
 
 
-
+async def get_ai_enhance_queue_file(studio_name):
+    config_file_path = await get_studio_config_file(studio_name)
+    settings = await read_settings_file(config_file_path)
+    api_url = settings['image_settings']['api_url']
+    return f"/cloud/copy_script/{queue_files_mapping[api_url]}"

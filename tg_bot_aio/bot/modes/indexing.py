@@ -95,7 +95,7 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
         else:
             await callback.message.answer(text="Файлы еще копируются")
     elif data.get('mode') == 'ИИ Обработка':
-        await add_to_ai_queue(path)
+        await add_to_ai_queue(path, data.get('studio'))
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
 
     elif data.get('mode') == 'Обработка:запустить':
