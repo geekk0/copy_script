@@ -14,7 +14,10 @@ from photos_copy_script import FileCopier, read_config
 
 exclusive_lock = threading.Lock()
 stop_event = threading.Event()
-enhancer_host_list = ['http://192.168.0.178:8000']
+enhancer_host_list = [
+    'http://192.168.0.178:8000',
+    'http://192.168.0.199:8000'
+]
 
 config_file_mapping = {
                 'Силуэт': 'silhouette_config.ini',
@@ -166,13 +169,22 @@ class EnhanceCaller:
 
         hour_ranges = self.get_hour_ranges_from_processed_folders()
 
+        logger.info(f'hour_ranges {hour_ranges}')
+
+        logger.info(f'config: {self.config}')
+
         for hour_range in hour_ranges:
 
             try:
-                file_copier = FileCopier(self.config)
+                # config = ConfigParser()
+                # config.read_dict(self.config.get('path_settings'))
+                # logger.info(f'hour range: {hour_range}')
+                file_copier = FileCopier(self.config.get('path_settings'))
+                logger.info(f'file_copier: {file_copier}')
                 current_month, current_date = file_copier.get_current_month_and_date()
+                logger.info(f'current_month, current_date: {current_month, current_date}')
                 folder_path = file_copier.construct_paths(current_month, current_date, hour_range)
-                logger.debug(f'folder path: {folder_path}')
+                logger.info(f'folder path: {folder_path}')
                 if folder_path not in ready_folders:
                     ready_folders.append(folder_path)
             except Exception as e:
