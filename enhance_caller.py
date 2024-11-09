@@ -23,7 +23,8 @@ config_file_mapping = {
                 'Силуэт': 'silhouette_config.ini',
                 'Отражение': 'reflect_config.ini',
                 'Reflect KZ': 'kz_config.ini',
-                'Neo': 'neo_config.ini'
+                'Neo': 'neo_config.ini',
+                'Портрет(ЗАЛ)': 'portrait_config.ini'
             }
 
 queue_files_mapping = {
