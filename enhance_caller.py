@@ -230,8 +230,7 @@ class EnhanceCaller:
 
 def get_settings_files():
     settings_files = [os.path.join(os.getcwd(), 'portrait_config.ini'),
-                      os.path.join(os.getcwd(), 'neo_config.ini'),
-                      os.path.join(os.getcwd(), 'kz_config.ini')]
+                      os.path.join(os.getcwd(), 'neo_config.ini')]
     return settings_files
 
 
