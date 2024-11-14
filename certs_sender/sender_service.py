@@ -1,6 +1,7 @@
 import imaplib
 import email
 import smtplib
+import time
 from os import environ
 
 import fitz
@@ -200,14 +201,17 @@ class CertsService:
         bot.send_message(chat_id=chat_id, text=message)
 
 
-cert_service = CertsService()
-certs = cert_service.get_certs_data_from_emails()
-print_cert_list = cert_service.enrich_certs_with_codes(certs)
-cert_service.print_certs(print_cert_list)
-for cert in print_cert_list:
-    try:
-        cert_service.send_email(cert)
-        cert_service.send_email(cert, check_email=True)
-    except Exception as e:
-        cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert.number}: {e}")
+while True:
+    cert_service = CertsService()
+    certs = cert_service.get_certs_data_from_emails()
+    print_cert_list = cert_service.enrich_certs_with_codes(certs)
+    cert_service.print_certs(print_cert_list)
+    for cert in print_cert_list:
+        try:
+            cert_service.send_email(cert)
+            cert_service.send_email(cert, check_email=True)
+        except Exception as e:
+            cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert.number}: {e}")
+
+    time.sleep(60)
 
