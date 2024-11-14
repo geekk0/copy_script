@@ -19,6 +19,8 @@ from dotenv import load_dotenv
 from certs_sender.schemas import EmailCertData, SendCertData
 from texts import email_subject, email_body
 
+load_dotenv()
+
 
 class CertsService:
     login = "studio.reflect@yandex.ru"
@@ -83,10 +85,7 @@ class CertsService:
     ) -> list[SendCertData]:
         print_certs_list = []
         for cert in certs_list:
-            cert_data = self.get_cert_code(
-                cert.phone,
-                cert.number
-            )
+            cert_data = self.get_cert_code(cert)
             if cert_data:
                 send_cert_data = SendCertData(
                     email=cert.email,
@@ -120,12 +119,11 @@ class CertsService:
 
     @staticmethod
     def get_cert_code(
-            phone: str,
-            number: str
+            cert: EmailCertData
     ) -> dict:
         params = {
             "company_id": "809799",
-            "phone": phone
+            "phone": cert.phone
         }
 
         headers = {
@@ -139,24 +137,44 @@ class CertsService:
             headers=headers
         )
 
-        result = {
-            'code': response.json()['data'][0]['number'],
-            'number': response.json()['data'][0]['id']
-        }
+        result = None
+
+        if len(response.json()['data']) == 1:
+
+            result = {
+                'code': response.json()['data'][0]['number'],
+                'number': response.json()['data'][0]['id']
+            }
+
+        elif len(response.json()['data']) > 1:
+
+            result = {
+                'code': [x['number'] for x in response.json()['data'][0]],
+                'number': response.json()['data'][0]['id']
+            }
+
         return result
 
     def print_certs(self, certs_list: list[SendCertData]):
+        print(certs_list)
         for cert in certs_list:
-            input_pdf_path = "cert_original.pdf"
+            if isinstance(cert.code, list):
+                for code in cert.code:
+                    self.insert_data_into_cert(code, cert.date)
+            else:
+                self.insert_data_into_cert(cert.code, cert.date)
 
-            pdf_document = fitz.open(input_pdf_path)
+    @staticmethod
+    def insert_data_into_cert(code, date):
+        input_pdf_path = "cert_original.pdf"
+        pdf_document = fitz.open(input_pdf_path)
 
-            for page_num in range(pdf_document.page_count):
-                page = pdf_document[page_num]
-                page.insert_text((770, 959), cert.number, fontsize=28, color=(0, 0, 0))
-                page.insert_text((700, 1055), cert.code, fontsize=28, color=(0, 0, 0))
-                page.insert_text((770, 1005), cert.date, fontsize=28, color=(0, 0, 0))
-            pdf_document.save(f"certificate_{cert.number}.pdf")
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            # page.insert_text((770, 959), cert.number, fontsize=28, color=(0, 0, 0))
+            page.insert_text((700, 1055), code, fontsize=28, color=(0, 0, 0))
+            page.insert_text((770, 1005), date, fontsize=28, color=(0, 0, 0))
+        pdf_document.save(f"certificate_{code}.pdf")
 
     def send_email(self, cert_data, check_email=None):
 
@@ -171,18 +189,24 @@ class CertsService:
         if check_email:
             recipient = "mufasanw@gmail.com"
 
-        pdf_file = f"certificate_{cert_data.number}.pdf"
+        if isinstance(cert_data.code, list):
+            pdf_files = []
+            for code in cert_data.code:
+                pdf_files.append(f"certificate_{code}.pdf")
+        else:
+            pdf_files = [f"certificate_{cert_data.code}.pdf"]
 
         msg = MIMEMultipart()
         msg['Subject'] = subject
         msg['From'] = self.login
         msg['To'] = recipient
 
-        with open(pdf_file, 'rb') as f:
-            pdf_data = f.read()
-        pdf_attachment = MIMEApplication(pdf_data, Name=pdf_file)
-        pdf_attachment['Content-Disposition'] = 'attachment; filename="%s"' % pdf_file
-        msg.attach(pdf_attachment)
+        for file in pdf_files:
+            with open(file, 'rb') as f:
+                pdf_data = f.read()
+            pdf_attachment = MIMEApplication(pdf_data, Name=file)
+            pdf_attachment['Content-Disposition'] = 'attachment; filename="%s"' % file
+            msg.attach(pdf_attachment)
 
         msg.attach(MIMEText(body, 'plain'))
 
@@ -193,7 +217,6 @@ class CertsService:
 
     @staticmethod
     def send_tg_notification(message):
-        load_dotenv()
         token = environ.get("BOT_TOKEN")
         bot = telebot.TeleBot(token)
         chat_id = int(environ.get('REFLECT_GROUP_CHAT_ID'))
@@ -204,7 +227,9 @@ while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
     print_cert_list = cert_service.enrich_certs_with_codes(certs)
+
     cert_service.print_certs(print_cert_list)
+
     for cert in print_cert_list:
         try:
             cert_service.send_email(cert)

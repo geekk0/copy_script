@@ -13,7 +13,7 @@ class EmailCertData(BaseModel):
 
 
 class SendCertData(BaseModel):
-    code: str
+    code: str | list[str]
     date: str
     email: str
     name: str
