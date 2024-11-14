@@ -23,7 +23,7 @@ from texts import email_subject, email_body
 class CertsService:
     login = "studio.reflect@yandex.ru"
     username = "Reflect Studio"
-    password = "zzjzfegjewxmsqad"
+    password = environ.get("YANDEX_EMAIL_PSWD")
     imap_server = "imap.yandex.ru"
 
     def get_certs_data_from_emails(self):
@@ -129,8 +129,7 @@ class CertsService:
         }
 
         headers = {
-            "Authorization": "Bearer 24brpncb9u6rz9fszh3f, "
-                             "User a68869f8a94338c802a633c203960539",
+            "Authorization": environ.get("YANDEX_APP_TOKEN"),
             "Accept": "*application/vnd.api.v2+json*"
         }
 
