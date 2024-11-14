@@ -1,0 +1,15 @@
+[Unit]
+Description=Scan input emails for folder, creates and sends email with pdf, containing cert
+After=network.target
+
+[Service]
+# User=username  # Replace with the appropriate user
+WorkingDirectory=/cloud/copy_script/certs_sender
+ExecStart=/cloud/copy_script/cs_env/bin/python /cloud/copy_script/certs_sender/sender_service.py
+
+# Optional: Restart settings
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
