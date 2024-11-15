@@ -16,7 +16,7 @@ import telebot
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from certs_sender.schemas import EmailCertData, SendCertData
+from schemas import EmailCertData, SendCertData
 from texts import email_subject, email_body
 
 load_dotenv()
@@ -32,9 +32,9 @@ class CertsService:
         mail = imaplib.IMAP4_SSL(self.imap_server)
         mail.login(self.login, self.password)
 
-        mail.select("test_folder")
+        mail.select("certs_folder")
         sender_filter = "support@yclients.com"
-        search_criteria = f'(FROM "{sender_filter} UNSEEN")'
+        search_criteria = f'(FROM "{sender_filter}" UNSEEN)'
         status, messages = mail.search(None, search_criteria)
 
         email_ids = messages[0].split()
@@ -137,6 +137,9 @@ class CertsService:
             headers=headers
         )
 
+        print(response.json())
+        print(len(response.json()['data']))
+
         result = None
 
         if len(response.json()['data']) == 1:
@@ -149,14 +152,13 @@ class CertsService:
         elif len(response.json()['data']) > 1:
 
             result = {
-                'code': [x['number'] for x in response.json()['data'][0]],
+                'code': [x['number'] for x in response.json()['data']],
                 'number': response.json()['data'][0]['id']
             }
 
         return result
 
     def print_certs(self, certs_list: list[SendCertData]):
-        print(certs_list)
         for cert in certs_list:
             if isinstance(cert.code, list):
                 for code in cert.code:
@@ -183,8 +185,8 @@ class CertsService:
 
         subject = email_subject
         body = email_body
-        # recipient = cert_data.email
-        recipient = "gekk0dw@gmail.com"
+        recipient = cert_data.email
+        # recipient = "gekk0dw@gmail.com"
 
         if check_email:
             recipient = "mufasanw@gmail.com"
@@ -227,7 +229,6 @@ while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
     print_cert_list = cert_service.enrich_certs_with_codes(certs)
-
     cert_service.print_certs(print_cert_list)
 
     for cert in print_cert_list:
