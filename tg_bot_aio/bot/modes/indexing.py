@@ -84,16 +84,24 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
     path = os.path.join(data.get('path'), callback.data)
 
     if data.get('mode') == 'Индексация':
-        await callback.message.edit_text(text="Проверка папки, это займет до 10 секунд...")
-        if await check_ready_for_index(path):
-            await change_ownership(path)
-            await change_folder_permissions(path)
-            result = await run_indexing(path)
-            await state.clear()
-            kb = await create_kb(mode_names, mode_names * len(mode_names))
-            await callback.message.edit_text(text=f"{path}: {result}", reply_markup=kb)
-        else:
-            await callback.message.answer(text="Файлы еще копируются")
+        # await callback.message.edit_text(text="Проверка папки, это займет до 10 секунд...")
+        # if await check_ready_for_index(path):
+        #     await change_ownership(path)
+        #     await change_folder_permissions(path)
+        #     result = await run_indexing(path)
+        #     await state.clear()
+        #     kb = await create_kb(mode_names, mode_names * len(mode_names))
+        #     await callback.message.edit_text(text=f"{path}: {result}", reply_markup=kb)
+        # else:
+        #     await callback.message.answer(text="Файлы еще копируются")
+
+        await change_ownership(path)
+        await change_folder_permissions(path)
+        result = await run_indexing(path)
+        await state.clear()
+        kb = await create_kb(mode_names, mode_names * len(mode_names))
+        await callback.message.edit_text(text=f"{path}: {result}", reply_markup=kb)
+
     elif data.get('mode') == 'ИИ Обработка':
         await add_to_ai_queue(path, data.get('studio'))
         await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")

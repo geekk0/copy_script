@@ -11,6 +11,7 @@ from email.header import Header
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from loguru import logger
 
 import telebot
 from bs4 import BeautifulSoup
@@ -38,6 +39,8 @@ class CertsService:
         status, messages = mail.search(None, search_criteria)
 
         email_ids = messages[0].split()
+
+        logger.debug(f"email_ids: {email_ids}")
 
         new_certs = []
 
@@ -160,11 +163,15 @@ class CertsService:
 
     def print_certs(self, certs_list: list[SendCertData]):
         for cert in certs_list:
-            if isinstance(cert.code, list):
-                for code in cert.code:
-                    self.insert_data_into_cert(code, cert.date)
-            else:
-                self.insert_data_into_cert(cert.code, cert.date)
+            try:
+                if isinstance(cert.code, list):
+                    for code in cert.code:
+                        self.insert_data_into_cert(code, cert.date)
+                else:
+                    self.insert_data_into_cert(cert.code, cert.date)
+                logger.debug(f'cert for email: {cert.email} was printed')
+            except Exception as e:
+                logger.error(f'cert for email: {cert.email} was not printed: {e}')
 
     @staticmethod
     def insert_data_into_cert(code, date):
@@ -176,7 +183,7 @@ class CertsService:
             # page.insert_text((770, 959), cert.number, fontsize=28, color=(0, 0, 0))
             page.insert_text((700, 1055), code, fontsize=28, color=(0, 0, 0))
             page.insert_text((770, 1005), date, fontsize=28, color=(0, 0, 0))
-        pdf_document.save(f"certificate_{code}.pdf")
+        pdf_document.save(f"files/certificate_{code}.pdf")
 
     def send_email(self, cert_data, check_email=None):
 
@@ -194,28 +201,37 @@ class CertsService:
         if isinstance(cert_data.code, list):
             pdf_files = []
             for code in cert_data.code:
-                pdf_files.append(f"certificate_{code}.pdf")
+                pdf_files.append(f"files/certificate_{code}.pdf")
         else:
-            pdf_files = [f"certificate_{cert_data.code}.pdf"]
+            pdf_files = [f"files/certificate_{cert_data.code}.pdf"]
 
         msg = MIMEMultipart()
         msg['Subject'] = subject
         msg['From'] = self.login
         msg['To'] = recipient
 
+        total_weight = 0
         for file in pdf_files:
             with open(file, 'rb') as f:
                 pdf_data = f.read()
+                total_weight += len(pdf_data)
             pdf_attachment = MIMEApplication(pdf_data, Name=file)
             pdf_attachment['Content-Disposition'] = 'attachment; filename="%s"' % file
             msg.attach(pdf_attachment)
 
         msg.attach(MIMEText(body, 'plain'))
 
-        server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        server.login(self.login, self.password)
-        server.sendmail(self.login, recipient, msg.as_string())
-        server.quit()
+        logger.info(f"Attached {len(pdf_files)} files, total weight: {total_weight / (1024 * 1024):.2f} MB")
+
+        try:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            server.login(self.login, self.password)
+            server.sendmail(self.login, recipient, msg.as_string())
+            server.quit()
+            logger.debug(f"Сертификат {cert.number} отправлен")
+        except Exception as e:
+            cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert.number}: {e}")
+            logger.debug(f"Ошибка при отправке сертификата {cert.number}: {e}")
 
     @staticmethod
     def send_tg_notification(message):
@@ -225,18 +241,23 @@ class CertsService:
         bot.send_message(chat_id=chat_id, text=message)
 
 
+logger.add(
+    f"certs_sender.log",
+    format="{time} {level} {message}",
+    rotation="10 MB",
+    compression='zip',
+    level="DEBUG")
+
 while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
-    print_cert_list = cert_service.enrich_certs_with_codes(certs)
-    cert_service.print_certs(print_cert_list)
-
-    for cert in print_cert_list:
-        try:
-            cert_service.send_email(cert)
-            cert_service.send_email(cert, check_email=True)
-        except Exception as e:
-            cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert.number}: {e}")
+    # logger.debug(f'certs: {certs}')
+    # print_cert_list = cert_service.enrich_certs_with_codes(certs)
+    # logger.debug(f'print_cert_list: {print_cert_list}')
+    # cert_service.print_certs(print_cert_list)
+    #
+    # for cert in print_cert_list:
+    #     cert_service.send_email(cert)
 
     time.sleep(60)
 
