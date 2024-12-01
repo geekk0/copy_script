@@ -194,28 +194,28 @@ class FileCopier:
         logger.info(root_path_message)
 
         while True:
-            self.delete_outdated_folders()
+            # self.delete_outdated_folders()
             self.process_files(studio_root_path)
 
             time.sleep(int(self.config["IterationSleepTime"]))
 
-    def delete_outdated_folders(self):
-        current_date = datetime.now(self.studio_timezone).strftime('%d')
-        if self.config['Delete_outdated_folders'] != 'Yes' or current_date != '20':
-            return
-
-        now = datetime.now(self.studio_timezone)
-        studio_name = self.config["Studio_name"]
-        studio_base_path = self.config["BaseDirPath"]
-        current_month = self.translate_month_to_russian(now.strftime("%B"))
-
-        for folder_name in os.listdir(studio_base_path):
-            folder_path = os.path.join(studio_base_path, folder_name)
-            if os.path.isdir(folder_path):
-                if current_month not in folder_name and studio_name.upper() in folder_name:
-                    suffix = f'{studio_name}/{current_month} {studio_name.upper()}'
-                    logger.info(f'deleting folder {suffix}')
-                    self.move_folder_to_trash_bin(suffix)
+    # def delete_outdated_folders(self):
+    #     current_date = datetime.now(self.studio_timezone).strftime('%d')
+    #     if self.config['Delete_outdated_folders'] != 'Yes' or current_date != '20':
+    #         return
+    #
+    #     now = datetime.now(self.studio_timezone)
+    #     studio_name = self.config["Studio_name"]
+    #     studio_base_path = self.config["BaseDirPath"]
+    #     current_month = self.translate_month_to_russian(now.strftime("%B"))
+    #
+    #     for folder_name in os.listdir(studio_base_path):
+    #         folder_path = os.path.join(studio_base_path, folder_name)
+    #         if os.path.isdir(folder_path):
+    #             if current_month not in folder_name and studio_name.upper() in folder_name:
+    #                 suffix = f'{studio_name}/{current_month} {studio_name.upper()}'
+    #                 logger.info(f'deleting folder {suffix}')
+    #                 self.move_folder_to_trash_bin(suffix)
 
     @staticmethod
     def move_folder_to_trash_bin(suffix):

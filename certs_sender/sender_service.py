@@ -181,8 +181,8 @@ class CertsService:
         for page_num in range(pdf_document.page_count):
             page = pdf_document[page_num]
             # page.insert_text((770, 959), cert.number, fontsize=28, color=(0, 0, 0))
-            page.insert_text((700, 1055), code, fontsize=28, color=(0, 0, 0))
-            page.insert_text((770, 1005), date, fontsize=28, color=(0, 0, 0))
+            page.insert_text((510, 1523), code, fontsize=16, fontname="helv", color=(0.4, 0.4, 0.4))
+            page.insert_text((500, 1575), date, fontsize=16, fontname="helv", color=(0.4, 0.4, 0.4))
         pdf_document.save(f"files/certificate_{code}.pdf")
 
     def send_email(self, cert_data, check_email=None):
@@ -228,10 +228,10 @@ class CertsService:
             server.login(self.login, self.password)
             server.sendmail(self.login, recipient, msg.as_string())
             server.quit()
-            logger.debug(f"Сертификат {cert.number} отправлен")
+            logger.debug(f"Сертификат {cert_data.number} отправлен")
         except Exception as e:
-            cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert.number}: {e}")
-            logger.debug(f"Ошибка при отправке сертификата {cert.number}: {e}")
+            cert_service.send_tg_notification(f"Ошибка при отправке сертификата {cert_data.number}: {e}")
+            logger.debug(f"Ошибка при отправке сертификата {cert_data.number}: {e}")
 
     @staticmethod
     def send_tg_notification(message):
@@ -251,13 +251,12 @@ logger.add(
 while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
-    # logger.debug(f'certs: {certs}')
-    # print_cert_list = cert_service.enrich_certs_with_codes(certs)
-    # logger.debug(f'print_cert_list: {print_cert_list}')
-    # cert_service.print_certs(print_cert_list)
-    #
-    # for cert in print_cert_list:
-    #     cert_service.send_email(cert)
+    logger.debug(f'certs: {certs}')
+    print_cert_list = cert_service.enrich_certs_with_codes(certs)
+    logger.debug(f'print_cert_list: {print_cert_list}')
+    cert_service.print_certs(print_cert_list)
+
+    for cert in print_cert_list:
+        cert_service.send_email(cert)
 
     time.sleep(60)
-
