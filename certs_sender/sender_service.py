@@ -34,8 +34,7 @@ class CertsService:
         mail.login(self.login, self.password)
 
         mail.select("certs_folder")
-        sender_filter = "support@yclients.com"
-        search_criteria = f'(FROM "{sender_filter}" UNSEEN)'
+        search_criteria = "UNSEEN"
         status, messages = mail.search(None, search_criteria)
 
         email_ids = messages[0].split()

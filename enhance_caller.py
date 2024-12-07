@@ -144,6 +144,10 @@ class EnhanceCaller:
 
         for folder in self.get_ai_queue():
             try:
+
+                self.chown_folder(folder)
+                self.index_folder(folder)
+
                 logger.info(f'folder is: {folder}')
                 action = self.get_folder_action(folder)
                 logger.debug(f'action: {action}')
