@@ -59,12 +59,13 @@ async def count_files_in_folder(folder_path):
 
 async def get_studio_config_file(studio):
     studio_configs = {
-            'Отражение': 'reflect_config.ini',
-            'Портрет(ЗАЛ)': 'portrait_config.ini',
-            'Силуэт': 'silhouette_config.ini',
-            'Reflect KZ': 'kz_config.ini',
-            'test_studio': 'test_studio_config.ini',
-            'Neo': 'neo_config.ini'
+        'Отражение': 'reflect_config.ini',
+        'Портрет(ЗАЛ)': 'portrait_config.ini',
+        'Силуэт': 'silhouette_config.ini',
+        'Reflect KZ': 'kz_config.ini',
+        'test_studio': 'test_studio_config.ini',
+        'Neo': 'neo_config.ini',
+        'Милан': 'milan_config.ini'
     }
 
     studio_config_file_path = (os.path.join(f'/cloud/copy_script',

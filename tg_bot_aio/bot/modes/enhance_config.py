@@ -66,9 +66,9 @@ async def process_studio(callback: CallbackQuery, state: FSMContext, text=None):
 
         else:
             await callback.message.edit_text(
-                text=f'Настройки обработки для студии "{self.selected_studio}" отсутствуют')
+                text=f'Настройки обработки для студии "{studio}" отсутствуют')
     else:
-        await callback.edit_message_text(call, text=f'Не найден файл конфигурации для студии "{callback.data}"')
+        await callback.message.answer(text=f'Не найден файл конфигурации для студии "{callback.data}"')
 
 
 @form_router.callback_query(ImageSettings.show_parameter)
