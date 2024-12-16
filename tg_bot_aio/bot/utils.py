@@ -137,7 +137,10 @@ async def add_to_ai_queue(folder, studio_name):
     if folder in ai_index_queue:
         print('Already in queue')
         return
-    ai_index_queue.insert(0, folder)
+    if studio_name == "Милан":
+        ai_index_queue.append(folder)
+    else:
+        ai_index_queue.insert(0, folder)
     with open(ai_queue_file_path, 'w') as f:
         json.dump(ai_index_queue, f)
 
