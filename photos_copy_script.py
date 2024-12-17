@@ -117,8 +117,8 @@ class FileCopier:
                     and filename.lower().endswith(allowed_extension)):
                 continue
 
-            if not self.creation_date_check(source_file):
-                continue
+            # if not self.creation_date_check(source_file):
+            #     continue
 
             if not self.transfer_active_check(source_file):
                 self.destination_path = None
