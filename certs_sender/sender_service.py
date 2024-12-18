@@ -133,32 +133,32 @@ class CertsService:
             "Accept": "*application/vnd.api.v2+json*"
         }
 
-        response = requests.get(
-            url="https://api.yclients.com/api/v1/loyalty/certificates/",
-            params=params,
-            headers=headers
-        )
+        try:
+            response = requests.get(
+                url="https://api.yclients.com/api/v1/loyalty/certificates/",
+                params=params,
+                headers=headers
+            )
+            logger.debug(f"api/v1/loyalty/certificates/ response: {response.json()}")
+            logger.debug(f"api/v1/loyalty/certificates/ response length: {len(response.json()['data'])}")
 
-        print(response.json())
-        print(len(response.json()['data']))
+            result = None
 
-        result = None
+            if len(response.json()['data']) == 1:
+                result = {
+                    'code': response.json()['data'][0]['number'],
+                    'number': response.json()['data'][0]['id']
+                }
+            elif len(response.json()['data']) > 1:
+                result = {
+                    'code': [x['number'] for x in response.json()['data']],
+                    'number': response.json()['data'][0]['id']
+                }
 
-        if len(response.json()['data']) == 1:
+            return result
 
-            result = {
-                'code': response.json()['data'][0]['number'],
-                'number': response.json()['data'][0]['id']
-            }
-
-        elif len(response.json()['data']) > 1:
-
-            result = {
-                'code': [x['number'] for x in response.json()['data']],
-                'number': response.json()['data'][0]['id']
-            }
-
-        return result
+        except Exception as e:
+            logger.error(f"api/v1/loyalty/certificates/ error: {e}")
 
     def print_certs(self, certs_list: list[SendCertData]):
         for cert in certs_list:
