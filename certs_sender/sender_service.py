@@ -251,6 +251,7 @@ while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
     logger.debug(f'certs: {certs}')
+    time.sleep(30)
     print_cert_list = cert_service.enrich_certs_with_codes(certs)
     logger.debug(f'print_cert_list: {print_cert_list}')
     cert_service.print_certs(print_cert_list)
@@ -258,4 +259,4 @@ while True:
     for cert in print_cert_list:
         cert_service.send_email(cert)
 
-    time.sleep(60)
+    time.sleep(30)
