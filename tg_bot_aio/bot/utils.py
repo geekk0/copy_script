@@ -69,7 +69,7 @@ async def get_studio_config_file(studio):
     }
 
     studio_config_file_path = (os.path.join(f'/cloud/copy_script',
-                                                studio_configs[studio]))
+                                            studio_configs[studio]))
 
     if os.path.exists(studio_config_file_path):
         return studio_config_file_path
@@ -100,7 +100,6 @@ async def change_folder_permissions(folder):
 
 
 async def validation_settings_value(parameter, old_value, new_value):
-
     if 'filter' in parameter:
         if new_value.lower() == 'true' or new_value.lower() == 'false':
             return True
@@ -131,31 +130,33 @@ async def write_settings_file(config_file, key, value):
         config.write(file)
 
 
-async def add_to_ai_queue(folder, studio_name):
+async def add_to_ai_queue(folder, studio_name, action=None):
     ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
-    if folder in ai_index_queue:
-        print('Already in queue')
-        return
-    if studio_name == "Милан":
-        ai_index_queue.append(folder)
-    else:
-        ai_index_queue.insert(0, folder)
+
+    action_mapping = {"black-white": "milan_1_bw"}
+
+    if not any(task.get("folder_path") == folder for task in ai_index_queue):
+        if studio_name == "Милан":
+            ai_index_queue.append({"folder_path": folder, "action": action_mapping.get(action, None)})
+        else:
+            ai_index_queue.insert(0, {"folder_path": folder, "action": action})
     with open(ai_queue_file_path, 'w') as f:
-        json.dump(ai_index_queue, f)
+        json.dump(ai_index_queue, fp=f, indent=4, ensure_ascii=False)
 
 
 async def get_ai_queue(ai_queue_file_path):
     if not os.path.exists(ai_queue_file_path):
         with open(ai_queue_file_path, 'w') as f:
-            json.dump([], f)
+            json.dump([], fp=f, indent=4, ensure_ascii=False)
             return []
+
     with open(ai_queue_file_path, 'r') as f:
-         return json.load(f)
+        # logger.info(json.load(f))
+        return json.load(f)
 
 
 async def run_rs_enhance(folder_path):
-
     logger.info(f"Running RS enhance for folder: {folder_path}")
 
     studio_name = folder_path.split("/")[4]
@@ -183,7 +184,7 @@ async def run_rs_enhance(folder_path):
                                  config_file_name,
                                  folder_path],
                                 check=True, capture_output=True, text=True)
-        logger.info(f"RS enhance started. returncode: {result.returncode }")
+        logger.info(f"RS enhance started. returncode: {result.returncode}")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error executing command: {e}")
 

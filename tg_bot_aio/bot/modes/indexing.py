@@ -20,6 +20,7 @@ class IndexingForm(StatesGroup):
     month = State()
     date = State()
     time = State()
+    action = State()
 
 
 async def start_index_mode(callback: CallbackQuery, state: FSMContext):
@@ -103,8 +104,18 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text=f"{path}: {result}", reply_markup=kb)
 
     elif data.get('mode') == 'ИИ Обработка':
-        await add_to_ai_queue(path, data.get('studio'))
-        await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
+        await state.update_data(
+            time=callback.data,
+            path=os.path.join(data.get('path'), callback.data)
+        )
+
+        if data.get('studio') == "Милан":
+            kb = await create_kb(["regular", "black-white"], ["regular", "black-white"] * 2)
+            await callback.message.edit_text(text=f"Choose enhance preset", reply_markup=kb)
+            await state.set_state(IndexingForm.action)
+        else:
+            await add_to_ai_queue(path, data.get('studio'))
+            await callback.message.edit_text(text=f"Папка {path} \n добавлена в очередь")
 
     elif data.get('mode') == 'Обработка:запустить':
         try:
@@ -112,5 +123,20 @@ async def process_time(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(text=f"Обработка папки {path} \n запущена")
         except Exception as e:
             await callback.message.edit_text(text=f"Ошибка обработки: {e}")
+
+
+@form_router.callback_query(IndexingForm.action)
+async def process_action(callback: CallbackQuery, state: FSMContext):
+    logger.info("process_action")
+    data = await state.get_data()
+    logger.info(f"studio: {data.get('studio')}, action: {callback.data}")
+
+    if data.get('mode') == 'ИИ Обработка':
+        if data.get('studio') == "Милан":
+            action = callback.data
+        else:
+            action = None
+        await add_to_ai_queue(data.get('path'), data.get('studio'), action)
+        await callback.message.edit_text(text=f"Папка {data.get('path')} \n добавлена в очередь")
 
 form_router.message.middleware(ChatIDChecker())
