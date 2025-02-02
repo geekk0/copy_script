@@ -163,10 +163,12 @@ class EnhanceCaller:
                 self.bound_logger.debug(f'studio "{self.studio}": action: {action}')
                 new_folder = self.enhance_folder(folder, action)
                 self.bound_logger.debug(f'studio "{self.studio}": NEW folder is: {new_folder}')
-                folder_is_full = self.check_full_folder(folder)
+                folder_is_full = self.check_full_folder(new_folder)
 
                 self.bound_logger.debug(f'studio "{self.studio}": folder {folder} is_full: {folder_is_full}')
                 self.bound_logger.debug(f'studio "{self.studio}": new_folder: {new_folder}')
+
+                self.bound_logger.debug(f'skip condition: {not (new_folder and folder_is_full)}')
 
                 if not (new_folder and folder_is_full):
                     continue
@@ -203,8 +205,8 @@ class EnhanceCaller:
     def check_full_folder(folder_path):
         num_source_files = len([f for f in os.listdir(folder_path)
                                 if os.path.isfile(os.path.join(folder_path, f))])
-        num_enhanced_files = len([f for f in os.listdir(folder_path + '_AI')
-                                if os.path.isfile(os.path.join(folder_path + '_AI', f))])
+        num_enhanced_files = len([f for f in os.listdir(folder_path)
+                                if os.path.isfile(os.path.join(folder_path, f))])
         if num_enhanced_files >= num_source_files:
             return True
 
