@@ -134,11 +134,14 @@ async def add_to_ai_queue(folder, studio_name, action=None):
     ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
 
-    action_mapping = {"black-white": "milan_1_bw"}
+    action_mapping = {"black-white": "milan_1_bw", "regular": None}
 
-    if not any(task.get("folder_path") == folder for task in ai_index_queue):
+    if studio_name == "Милан":
+        action = action_mapping.get(action, None)
+
+    if not any((task.get("folder_path") == folder and task.get("action") == action) for task in ai_index_queue):
         if studio_name == "Милан":
-            ai_index_queue.append({"folder_path": folder, "action": action_mapping.get(action, None)})
+            ai_index_queue.append({"folder_path": folder, "action": action})
         else:
             ai_index_queue.insert(0, {"folder_path": folder, "action": action})
     with open(ai_queue_file_path, 'w') as f:
