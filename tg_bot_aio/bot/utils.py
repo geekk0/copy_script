@@ -237,3 +237,11 @@ async def get_ai_enhance_queue_file(studio_name):
     settings = await read_settings_file(config_file_path)
     api_url = settings['image_settings']['api_url']
     return f"/cloud/copy_script/{queue_files_mapping[api_url]}"
+
+
+async def get_readable_queue(queue_file):
+    queue_file_path = os.path.join('/cloud/copy_script/', queue_file)
+    logger.info(f"queue_file_path: {queue_file_path}")
+    with open(queue_file_path, 'r') as f:
+        readable_queue_list = [folder for folder in json.load(f)]
+        return readable_queue_list
