@@ -1,4 +1,7 @@
 import os
+import asyncio
+from time import sleep
+
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -72,15 +75,22 @@ async def get_record_folder(record: dict) -> str:
         day = date.day
         hour = date.hour
 
-        folder = f"/cloud/reflect/files/{studio_name}/{month} {studio_name.upper()}/{day:02d}.{date.month}/{hour}-{hour + 1}"
+        folder = (f"/cloud/reflect/files/{studio_name}/{month} {studio_name.upper()}/{day:02d}"
+                  f".{date.month:02d}/{hour}-{hour + 1}")
 
         return folder
     except ValueError:
         return "Invalid date format"
 
 
-async def check_record_before_create_task(record: dict):
+async def check_record_before_create_task(record: dict, folder_path):
     result = {'status': True, 'message': None, 'exists': False}
+
+    if not os.path.exists(folder_path):
+        result = {'status': False,
+                  'message': f'Папка \n"{folder_path}"\n не найдена на сервере', 'exists': False}
+        return result
+
     existing_task = await EnhanceTask.filter(yclients_record_id=record.get('record_id')).first()
     if existing_task:
         if existing_task.enhanced_files_count < 10:
@@ -91,8 +101,9 @@ async def check_record_before_create_task(record: dict):
     return result
 
 
-async def compress_image(image_path):
-    output_path = image_path.replace('.jpg', "_compressed.jpg")
+async def compress_image(image_name, image_path):
+    new_name = image_name.replace('.jpg', "_compressed.jpg")
+    output_path = os.path.join(os.getcwd(), "photos", new_name)
 
     if not os.path.exists(output_path):
         with Image.open(image_path) as img:
@@ -101,15 +112,14 @@ async def compress_image(image_path):
             img.thumbnail((700, 700))
             img.save(output_path, "JPEG", quality=55)
 
-    filename = os.path.basename(output_path)
-
-    return filename
+    return new_name
 
 
 @form_router.message(SelectFilesForm.create_user)
 async def create_user(message: Message, state: FSMContext):
     phone = message.text
     user_data = await api_manager.get_client_info_by_phone(phone)
+    logger.debug(f"user data: {user_data}")
     yclients_user_id = user_data.get('data')[0].get('id')
     logger.debug(f'yclients_user_id: {yclients_user_id}')
     await state.update_data(yclients_user_id=yclients_user_id)
@@ -153,7 +163,7 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
     folder_path = await get_record_folder(selected_record_dict)
     logger.debug(f"folder_path: {folder_path}")
 
-    checks_result = await check_record_before_create_task(selected_record_dict)
+    checks_result = await check_record_before_create_task(selected_record_dict, folder_path)
 
     if checks_result.get('status'):
         if not checks_result.get('exists'):
@@ -164,9 +174,9 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
             )
             logger.debug(f"created task: {task}")
 
+        await state.update_data(folder_path=folder_path)
         await state.set_state(SelectFilesForm.send_folder_photos)
         await send_folders_photos(callback.message, state)
-        await state.update_data(folder_path=folder_path)
     else:
         await callback.message.edit_text(f"{checks_result.get('message')}",
                                          reply_markup=callback.message.reply_markup)
@@ -174,33 +184,32 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
 
 @form_router.callback_query(SelectFilesForm.send_folder_photos)
 async def send_folders_photos(message: Message, state: FSMContext):
+    data = await state.get_data()
     user_selected_photos = []
-
-    path = os.path.join(os.getcwd(), "clients_bot", "photos")
-
-    photos_paths = [
-        f"{os.path.join(path, 'image1.jpg')}",
-        f"{os.path.join(path, 'image2.jpg')}",
-        f"{os.path.join(path, 'image3.jpg')}"
-    ]
-
+    original_photo_path = data.get('folder_path')
+    logger.debug(f"original_photo_path: {original_photo_path}")
     logger.debug(f"user_selected_photos: {user_selected_photos}")
 
-    for photo in photos_paths:
+    with os.scandir(original_photo_path) as files:
+        for photo in files:
+            try:
+                if photo.is_file():
+                    compressed_image = await compress_image(photo.name, photo.path)
 
-        compressed_image = await compress_image(photo)
+                    logger.debug(f"compressed_image: {compressed_image}")
 
-        logger.debug(f"compressed_image: {compressed_image}")
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Выбрать", callback_data=f"select:{compressed_image}")]
-            ]
-        )
-        await message.answer_photo(
-            FSInputFile(os.path.join(os.getcwd(), "clients_bot", "photos", compressed_image)),
-            reply_markup=keyboard
-        )
+                    keyboard = InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [InlineKeyboardButton(text="Выбрать", callback_data=f"select:{compressed_image}")]
+                        ]
+                    )
+                    await message.answer_photo(
+                        FSInputFile(os.path.join(os.getcwd(), "photos", compressed_image)),
+                        reply_markup=keyboard
+                    )
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                logger.error(f"{e}")
 
     done_button = InlineKeyboardMarkup(
         inline_keyboard=[
