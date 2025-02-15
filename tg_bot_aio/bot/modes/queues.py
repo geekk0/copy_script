@@ -12,12 +12,14 @@ from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
 from ..utils import (run_indexing, check_ready_for_index,
                      change_ownership, change_folder_permissions,
-                     add_to_ai_queue, run_rs_enhance, get_readable_queue)
+                     add_to_ai_queue, run_rs_enhance, get_readable_queue, count_files_in_folder, remove_from_ai_queue)
 
 
 class QueueForm(StatesGroup):
-    queue_number = State()
-    queue_list = State()
+    queues_select = State()
+    queue_schedule = State()
+    folder_details = State()
+    process_folder_screen = State()
 
 
 queues_mapping = {
@@ -30,40 +32,136 @@ async def start_queue_mode(callback: CallbackQuery, state: FSMContext):
     mode = callback.data
     logger.info(f'mode: {mode}')
     await state.update_data(mode=mode)
-    await state.set_state(QueueForm.queue_number)
-    queues_kb = await create_kb(list(queues_mapping.keys()),
-                                list(queues_mapping.values()) *
-                                len(list(queues_mapping.keys())))
-    await callback.message.edit_text(text=f"{mode}, "
-                                          f"выберите очередь", reply_markup=queues_kb)
+    await state.set_state(QueueForm.queues_select)
+    await callback.message.edit_text(text=f"Введите пароль")
+    await state.update_data(message_to_delete_id=callback.message.message_id)
 
 
-@form_router.callback_query(QueueForm.queue_number)
+@form_router.message(QueueForm.queues_select)
+async def queues_select_screen(message: Message, state: FSMContext):
+    try:
+        password_match = False
+        data = await state.get_data()
+        logged_in = data.get('logged_in')
+        await state.update_data(selected_queue=None)
+        if not logged_in:
+            message_id = data.get('message_to_delete_id')
+            await message.bot.delete_message(message.chat.id, message_id)
+            await message.delete()
+            password = message.text
+            password_match = password == '123456Qe'
+
+        if password_match or logged_in:
+            await state.update_data(logged_in=True)
+            await state.set_state(QueueForm.queue_schedule)
+            queues_kb = await create_kb(list(queues_mapping.keys()),
+                                        list(queues_mapping.values()) *
+                                        len(list(queues_mapping.keys())))
+            await message.answer(text=f"выберите очередь", reply_markup=queues_kb)
+        else:
+            await message.answer("Неправильный пароль", protect_content=True)
+    except Exception as e:
+        logger.error(e)
+
+
+@form_router.callback_query(QueueForm.queue_schedule)
 async def process_queue_select(callback: CallbackQuery, state: FSMContext):
-    logger.info("process_queue_select")
+    data = await state.get_data()
+    selected_queue = data.get('selected_queue')
+    queue_name = data.get('queue_name')
 
-    queue_name = [key for key, val
-                  in queues_mapping.items() if val == callback.data][0]
+    if not selected_queue:
+        selected_queue = callback.data
+        queue_name = [key for key, val
+                      in queues_mapping.items() if val == callback.data][0]
 
-    await state.update_data(selected_queue=callback.data, queue_name=queue_name)
+        await state.update_data(selected_queue=callback.data, queue_name=queue_name)
 
-    logger.info(callback.data)
+    readable_queue_list = await get_readable_queue(selected_queue)
+    logger.info(f"readable_queue_list: {readable_queue_list}")
+    await state.update_data(readable_queue_list=readable_queue_list)
+    await state.set_state(QueueForm.folder_details)
 
-    readable_queue_list = await get_readable_queue(callback.data)
+    if readable_queue_list:
 
-    logger.info(f"readable_queue_list: {str(readable_queue_list)}")
+        folders_buttons = [x.get('folder_path').replace('/cloud/reflect/files/', '') for x in readable_queue_list]
 
-    text = ""
-    for element in readable_queue_list:
-        text += f"\n {element.get('folder_path').replace('/cloud/reflect/files/', '')}"
-        action = element.get('action')
-        if action:
-            text += f"\n экшн: {action}"
+        folders_mapping = {}
+        for i in range(0, len(readable_queue_list)):
+            folder_path = readable_queue_list[i].get('folder_path')
+            folders_mapping[str(i)] = {
+                'path': folder_path,
+                'action': readable_queue_list[i].get('action'),
+                'files': str(await count_files_in_folder(folder_path))
+            }
 
-    if not text:
-        text = f'Очередь "{queue_name}" пуста'
+        await state.update_data(folders_mapping=folders_mapping)
 
-    await callback.message.edit_text(text)
+        try:
+            logger.info("before append")
+            folders_kb = await create_kb(
+                list(folders_buttons) + ["Назад"],
+                list(folders_mapping.keys()) + ["Назад"], 1)
+            await callback.message.edit_text(f'{queue_name}, выберите папку: ', reply_markup=folders_kb)
+            logger.info("after append")
+
+        except Exception as e:
+            logger.error(e)
+    else:
+        delete_kb = await create_kb(['Назад'], ['Назад'])
+        await callback.message.edit_text(
+            f'Очередь "{queue_name}" пуста', reply_markup=delete_kb)
+
+
+@form_router.callback_query(QueueForm.folder_details)
+async def folder_details_screen(callback: CallbackQuery, state: FSMContext):
+    logger.info(f"callback_data: {callback.data}")
+    if callback.data == "Назад":
+        await queues_select_screen(callback.message, state)
+        # await state.set_state(QueueForm.queues_select)
+    else:
+        try:
+            folders_mapping = (await state.get_data()).get("folders_mapping")
+            selected_folder = folders_mapping[callback.data].get('path')
+            selected_folder_action = folders_mapping[callback.data].get('action')
+            selected_folder_files = folders_mapping[callback.data].get('files')
+            await state.update_data(
+                selected_folder=selected_folder,
+                selected_folder_action=selected_folder_action,
+            )
+            if not selected_folder_action:
+                selected_folder_action = "из конфига студии"
+            readable_queue_list = (await state.get_data()).get("readable_queue_list")
+            logger.info(f"readable_queue_list: {readable_queue_list}")
+
+            await state.set_state(QueueForm.process_folder_screen)
+
+            kb = await create_kb(['Назад', 'Удалить'], ['Назад', 'Удалить'])
+            await callback.message.edit_text(
+                f"Папка: {selected_folder.replace('/cloud/reflect/files/', '')} "
+                f"\nЭкшн: {selected_folder_action} "
+                f"\nФайлов: {selected_folder_files}", reply_markup=kb)
+
+        except Exception as e:
+            logger.error(e)
+
+
+@form_router.callback_query(QueueForm.process_folder_screen)
+async def process_details_screen(callback: CallbackQuery, state: FSMContext):
+    logger.info(f"callback_data: {callback.data}")
+    try:
+        data = await state.get_data()
+        selected_folder = data.get('selected_folder')
+        selected_folder_action = data.get('selected_folder_action')
+        selected_queue = data.get('selected_queue')
+        if callback.data == "Назад":
+            await process_queue_select(callback, state)
+        elif callback.data == "Удалить":
+            await remove_from_ai_queue(
+                selected_folder, selected_folder_action, selected_queue)
+            await process_queue_select(callback, state)
+    except Exception as e:
+        logger.error(e)
 
 
 form_router.message.middleware(ChatIDChecker())
