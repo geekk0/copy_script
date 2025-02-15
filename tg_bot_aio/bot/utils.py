@@ -245,3 +245,18 @@ async def get_readable_queue(queue_file):
     with open(queue_file_path, 'r') as f:
         readable_queue_list = [folder for folder in json.load(f)]
         return readable_queue_list
+
+
+async def remove_from_ai_queue(folder_path, action, queue_file):
+    try:
+        logger.info(f"folder_path: {folder_path}, action: {action}, queue_file: {queue_file}")
+        queue = await get_readable_queue(queue_file)
+        logger.info(f"queue: {queue}")
+        new_queue = [x for x in queue if not (x.get('folder_path') == folder_path and x.get('action') == action)]
+        logger.info(f"new_queue: {new_queue}")
+        logger.info(f"exists: {os.path.exists(os.path.join('/cloud/copy_script/', queue_file))}")
+        with open(os.path.join('/cloud/copy_script/', queue_file), 'w') as f:
+            json.dump(new_queue, fp=f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        logger.error(e)
+

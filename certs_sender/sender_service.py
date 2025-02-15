@@ -35,6 +35,7 @@ class CertsService:
 
         mail.select("certs_folder")
         search_criteria = "UNSEEN"
+        mail.noop()
         status, messages = mail.search(None, search_criteria)
 
         email_ids = messages[0].split()
@@ -79,6 +80,7 @@ class CertsService:
                     )
 
                     new_certs.append(email_cert_data)
+        mail.logout()
         return new_certs
 
     def enrich_certs_with_codes(
@@ -251,7 +253,7 @@ while True:
     cert_service = CertsService()
     certs = cert_service.get_certs_data_from_emails()
     logger.debug(f'certs: {certs}')
-    time.sleep(30)
+    time.sleep(60)
     print_cert_list = cert_service.enrich_certs_with_codes(certs)
     logger.debug(f'print_cert_list: {print_cert_list}')
     cert_service.print_certs(print_cert_list)
