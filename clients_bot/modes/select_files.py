@@ -1,13 +1,9 @@
 import os
-import asyncio
-from time import sleep
 
-from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, ChatPhoto, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.filters import Command
-from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.types import Message
+from aiogram.types import CallbackQuery
 from datetime import datetime
 from PIL import Image, ImageOps
 
@@ -17,7 +13,6 @@ from clients_bot.keyboards import create_kb
 from clients_bot.db_manager import DatabaseManager
 from clients_bot.api_manager import YClientsAPIManager
 from clients_bot.models import Record, EnhanceTask
-from clients_bot.utils import clear_photo_folder
 
 db_manager = DatabaseManager()
 api_manager = YClientsAPIManager()
@@ -27,8 +22,7 @@ class SelectFilesForm(StatesGroup):
     create_user = State()
     get_user_records = State()
     process_selected_record = State()
-    send_folder_photos = State()
-    process_selected_photos = State()
+    process_digits_set = State()
 
 
 async def start_select_files_form(message: Message, state: FSMContext):
@@ -160,104 +154,70 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
     selected_record_dict = [x for x in data.get('records_objects')
                             if x.get('record_id') == int(callback.data)][0]
     logger.debug(f"selected record: {selected_record_dict}")
-    folder_path = await get_record_folder(selected_record_dict)
-    logger.debug(f"folder_path: {folder_path}")
-
-    checks_result = await check_record_before_create_task(selected_record_dict, folder_path)
-
+    original_photo_path = await get_record_folder(selected_record_dict)
+    checks_result = await check_record_before_create_task(
+        selected_record_dict, original_photo_path)
+    await state.update_data(
+        original_photo_path=original_photo_path,
+        selected_record_dict=selected_record_dict,
+        checks_result=checks_result
+    )
     if checks_result.get('status'):
-        if not checks_result.get('exists'):
-            task = await db_manager.add_enhance_task(
-                callback.message.chat.id,
-                folder_path,
-                int(selected_record_dict.get('record_id'))
-            )
-            logger.debug(f"created task: {task}")
-
-        await state.update_data(folder_path=folder_path)
-        await state.set_state(SelectFilesForm.send_folder_photos)
-        await send_folders_photos(callback.message, state)
+        await state.set_state(SelectFilesForm.process_digits_set)
+        await callback.message.edit_text(
+            "Введите через пробел цифровые значения из названий 10 файлов файлов")
     else:
         await callback.message.edit_text(f"{checks_result.get('message')}",
                                          reply_markup=callback.message.reply_markup)
 
 
-@form_router.callback_query(SelectFilesForm.send_folder_photos)
-async def send_folders_photos(message: Message, state: FSMContext):
+@form_router.message(SelectFilesForm.process_digits_set)
+async def process_digits_set(message: Message, state: FSMContext):
     data = await state.get_data()
-    user_selected_photos = []
-    original_photo_path = data.get('folder_path')
-    logger.debug(f"original_photo_path: {original_photo_path}")
-    logger.debug(f"user_selected_photos: {user_selected_photos}")
+    original_photo_path = data.get('original_photo_path')
+    checks_result = data.get('checks_result')
+    selected_record_dict = data.get('selected_record_dict')
 
-    with os.scandir(original_photo_path) as files:
-        for photo in files:
-            try:
-                if photo.is_file():
-                    compressed_image = await compress_image(photo.name, photo.path)
+    photos_digits_set = set(message.text.split(" "))
+    found_files = set()
 
-                    logger.debug(f"compressed_image: {compressed_image}")
+    logger.debug(f"photos_digits_set: {photos_digits_set}")
 
-                    keyboard = InlineKeyboardMarkup(
-                        inline_keyboard=[
-                            [InlineKeyboardButton(text="Выбрать", callback_data=f"select:{compressed_image}")]
-                        ]
-                    )
-                    await message.answer_photo(
-                        FSInputFile(os.path.join(os.getcwd(), "photos", compressed_image)),
-                        reply_markup=keyboard
-                    )
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                logger.error(f"{e}")
+    if len(list(message.text.split(" "))) > 10:
+        await message.answer("Количество файлов превышено")
 
-    done_button = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Готово", callback_data="done_selection")] # ✅
-        ]
-    )
-    await state.update_data(user_selected_photos=user_selected_photos)
-    await state.set_state(SelectFilesForm.process_selected_photos)
-    await message.answer("Когда выберете все фото, нажмите 'Готово'.", reply_markup=done_button)
+    try:
+        for file in os.scandir(original_photo_path):
+            if file.is_file():
+                try:
+                    file_number_str = file.name.split('-')[1].split('.')[0]
+                    if file_number_str in photos_digits_set:
+                        found_files.add(file.name)
+                except (IndexError, ValueError):
+                    continue
 
+        missing_numbers = (photos_digits_set -
+                           {file.name.split('-')[1].split('.')[0]
+                            for file in os.scandir(original_photo_path) if file.is_file()})
+        logger.debug(f"missing numbers: {missing_numbers}")
 
-@form_router.callback_query(SelectFilesForm.process_selected_photos)
-async def process_selected_photos(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    user_selected_photos = data.get('user_selected_photos')
-    tg_photos_path = os.path.join(os.getcwd(), "clients_bot", "photos")
-
-    logger.debug(f"user_selected_photos: {user_selected_photos}")
-    logger.debug(f"callback.data: {callback.data}")
-
-    if callback.data.startswith("select:"):
-        photo_path = callback.data.split(":")[1]
-        logger.debug(f"selected photo path: {photo_path}")
-        if photo_path in user_selected_photos:
-            user_selected_photos.remove(photo_path)
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="Фото убрано из выбора ❌", callback_data=callback.data)]
-                ]
-            )
-            await callback.message.edit_reply_markup(reply_markup=keyboard)
-            await callback.answer("Количество выбранных фото: " + str(len(user_selected_photos)))
-
+        if missing_numbers:
+            await message.answer(
+                f"Эти номера не соответствуют названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
         else:
-            user_selected_photos.append(photo_path)
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="✅ Фото выбрано", callback_data=callback.data)]
-                ]
-            )
-            await callback.message.edit_reply_markup(reply_markup=keyboard)
-            await callback.answer("Количество выбранных фото: " + str(len(user_selected_photos)))
+            if not checks_result.get('exists'):
+                task = await db_manager.add_enhance_task(
+                    message.chat.id,
+                    original_photo_path,
+                    int(selected_record_dict.get('record_id'))
+                )
+                logger.debug(f"created task: {task}")
+            await message.answer(f"Файлы для обработки:\n"
+                                 f"{' '.join(map(str, found_files))}")
 
-    elif callback.data == "done_selection":
-        if user_selected_photos:
-            await callback.message.answer(f"Выбранные Вами фото:\n {user_selected_photos}")
-            await clear_photo_folder(tg_photos_path)
-        else:
-            await callback.message.answer("Вы не выбрали ни одного фото.")
+    except Exception as e:
+        logger.error(f"{e}")
 
-    await callback.answer()
+
+
+

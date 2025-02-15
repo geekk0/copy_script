@@ -36,6 +36,7 @@ class EnhanceTask(models.Model):
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
     created_at = fields.DatetimeField(auto_now_add=True)
     enhanced_files_count = fields.IntField(default=0)
+    files_list = fields.JSONField(null=True)
 
 
 class Record(BaseModel):
