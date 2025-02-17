@@ -160,12 +160,20 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
     await state.update_data(
         original_photo_path=original_photo_path,
         selected_record_dict=selected_record_dict,
-        checks_result=checks_result
+        checks_result=checks_result,
     )
     if checks_result.get('status'):
         await state.set_state(SelectFilesForm.process_digits_set)
-        await callback.message.edit_text(
-            "Введите через пробел цифровые значения из названий 10 файлов файлов")
+        if checks_result.get('exists'):
+            existing_task = await EnhanceTask.get(
+                yclients_record_id=int(selected_record_dict.get('record_id')))
+            await callback.message.edit_text(
+                f"Для этой записи выбрано {existing_task.enhanced_files_count} фото"
+                f" Введите через пробел цифровые значения "
+                f"из названий {10 - existing_task.enhanced_files_count} файлов")
+        else:
+            await callback.message.edit_text(
+                "Введите через пробел цифровые значения из названий 10 файлов")
     else:
         await callback.message.edit_text(f"{checks_result.get('message')}",
                                          reply_markup=callback.message.reply_markup)
@@ -184,7 +192,7 @@ async def process_digits_set(message: Message, state: FSMContext):
     logger.debug(f"photos_digits_set: {photos_digits_set}")
 
     if len(list(message.text.split(" "))) > 10:
-        await message.answer("Количество файлов превышено")
+        await message.answer("Количество фото превышено")
 
     try:
         for file in os.scandir(original_photo_path):
@@ -203,15 +211,28 @@ async def process_digits_set(message: Message, state: FSMContext):
 
         if missing_numbers:
             await message.answer(
-                f"Эти номера не соответствуют названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
+                f"Эти номера не соответствуют "
+                f"названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
         else:
-            if not checks_result.get('exists'):
-                task = await db_manager.add_enhance_task(
+            if checks_result.get('exists'):
+                existing_task = await EnhanceTask.get(
+                    yclients_record_id=int(selected_record_dict.get('record_id'))
+                )
+
+                if existing_task.enhanced_files_count + len(found_files) > 10:
+                    await message.answer("Общее количество выбранных фото превышено")
+                else:
+                    existing_task.files_list = (
+                            (existing_task.files_list or []) + list(found_files))
+                    await existing_task.save()
+            else:
+                new_task = await db_manager.add_enhance_task(
                     message.chat.id,
                     original_photo_path,
-                    int(selected_record_dict.get('record_id'))
+                    int(selected_record_dict.get('record_id')),
+                    list(found_files)
                 )
-                logger.debug(f"created task: {task}")
+                logger.debug(f"created task: {new_task}")
             await message.answer(f"Файлы для обработки:\n"
                                  f"{' '.join(map(str, found_files))}")
 

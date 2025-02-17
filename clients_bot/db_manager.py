@@ -13,6 +13,12 @@ class DatabaseManager:
         )
         return client
 
+    @staticmethod
+    async def remove_client(chat_id: int):
+        client = await Client.get_or_none(chat_id=chat_id)
+        if client:
+            await client.delete()
+
     async def get_client_by_chat_id(self, chat_id: int):
         """
         Ищет клиента по chat_id.
@@ -37,11 +43,16 @@ class DatabaseManager:
         orders = await Order.filter(client_id=client_id)
         return orders
 
-    async def add_enhance_task(self, client_chat_id: int, folder_path: str, yclients_record_id: int):
+    async def add_enhance_task(
+            self, client_chat_id: int, folder_path: str,
+            yclients_record_id: int, files_list: list = None
+    ):
         client = await Client.get(chat_id=client_chat_id)
         task = await EnhanceTask.create(
             client=client, folder_path=folder_path,
-            yclients_record_id=yclients_record_id)
+            yclients_record_id=yclients_record_id,
+            files_list=files_list
+        )
         return task
 
     async def get_enhance_tasks_by_client(self, client_id: int):

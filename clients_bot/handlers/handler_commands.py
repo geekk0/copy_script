@@ -29,4 +29,9 @@ async def choose_photos(message: Message, state: FSMContext):
     await start_select_files_form(message, state)
 
 
-command_router.message.middleware(ChatIDChecker())
+@command_router.message(Command("logout"))
+async def logout(message: Message):
+    await DatabaseManager.remove_client(message.chat.id)
+
+
+# command_router.message.middleware(ChatIDChecker())
