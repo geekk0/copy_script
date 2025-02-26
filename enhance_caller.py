@@ -85,10 +85,12 @@ class EnhanceCaller:
             "month": folder.split('/')[-3],
             "day": folder.split('/')[-2],
             "hour": folder.split('/')[-1],
+            "demo": False
         }
 
         if "_demo" in data["hour"]:
             data["hour"] = data["hour"].replace("_demo", "")
+            data["demo"] = True
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
 
