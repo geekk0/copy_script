@@ -33,7 +33,7 @@ class Order(models.Model):
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
     created_at = fields.DatetimeField(auto_now_add=True)
     package = fields.ForeignKeyField(
-        'models.Package', related_name='orders', on_delete=fields.SET_NULL
+        'models.Package', related_name='orders', on_delete=fields.CASCADE
     )
 
 
