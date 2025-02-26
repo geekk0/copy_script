@@ -92,24 +92,27 @@ class EnhanceCaller:
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
 
-        response = requests.post(enhance_folder_url, json=data)
+        try:
+            response = requests.post(enhance_folder_url, json=data)
 
-        if response.status_code != 200:
-            if 'already exists' not in response.json().get('error_message'):
+            if response.status_code != 200:
+                if 'already exists' not in response.json().get('error_message'):
+                    self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
+
+            elif response.json().get('error'):
                 self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
 
-        elif response.json().get('error'):
-            self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
-
-        else:
-            result_folder_name = response.json().get('folder_path')
-            if "_demo" in data["hour"]:
-                if "_AI" in result_folder_name:
-                    result_folder_name = result_folder_name.replace("_AI", "_demo_AI")
-                elif "_BW" in result_folder_name:
-                    result_folder_name = result_folder_name.replace("_BW", "_demo_BW")
-            self.remove_from_processed_folders(folder)
-            return result_folder_name
+            else:
+                result_folder_name = response.json().get('folder_path')
+                if "_demo" in data["hour"]:
+                    if "_AI" in result_folder_name:
+                        result_folder_name = result_folder_name.replace("_AI", "_demo_AI")
+                    elif "_BW" in result_folder_name:
+                        result_folder_name = result_folder_name.replace("_BW", "_demo_BW")
+                self.remove_from_processed_folders(folder)
+                return result_folder_name
+        except Exception as e:
+            self.bound_logger.error(f'studio "{self.studio}" send request error: {e}')
 
     def get_folder_action(self, folder):
 

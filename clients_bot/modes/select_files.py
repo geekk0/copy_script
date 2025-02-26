@@ -26,6 +26,12 @@ class SelectFilesForm(StatesGroup):
     process_digits_set = State()
 
 
+studios_mapping = {
+            "НЕО": "Neo", "Силуэт": "Силуэт", "Портрет": "Портрет",
+            "Отражение": "Отражение"
+        }
+
+
 async def start_select_files_form(message: Message, state: FSMContext):
     mode = "select_files"
     logger.debug(f'mode: {mode}')
@@ -54,11 +60,6 @@ async def get_record_folder(record: dict) -> str:
     date_str = record.get('date', '')
     try:
         date = datetime.strptime(date_str, "%d.%m.%y %H:%M")
-
-        studios_mapping = {
-            "НЕО": "Neo", "Силуэт": "Силуэт", "Портрет": "Портрет",
-            "Отражение": "Отражение"
-        }
 
         studio_name = studios_mapping[studio_name]
 
@@ -235,8 +236,18 @@ async def process_digits_set(message: Message, state: FSMContext):
                 )
                 logger.debug(f"created task: {new_task}")
 
-            await prepare_enhance_task(original_photo_path, list(found_files))
-            await add_to_ai_queue(original_photo_path, selected_record_dict.get('studio'))
+            try:
+                await prepare_enhance_task(original_photo_path, list(found_files))
+            except Exception as e:
+                logger.error(f"error prepare_enhance_task: {e}")
+            try:
+                await add_to_ai_queue(
+                    original_photo_path + "_demo",
+                    studios_mapping[selected_record_dict.get('studio')],
+                    True
+                )
+            except Exception as e:
+                logger.error(f"error add_to_ai_queue: {e}")
             await message.answer(f"Файлы для обработки:\n"
                                  f"{' '.join(map(str, found_files))}")
 

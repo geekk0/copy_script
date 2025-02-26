@@ -31,11 +31,12 @@ async def clear_photo_folder(folder_path):
 
 
 async def prepare_enhance_task(folder: str, files: list):
+    logger.debug(f"folder: {folder}, files: {files}")
     demo_folder = folder + '_demo'
     if not os.path.exists(demo_folder):
         os.mkdir(demo_folder)
     for file in files:
-        shutil.copy(file, demo_folder)
+        shutil.copy(os.path.join(folder, file), demo_folder)
     await run_indexing(demo_folder)
 
 
