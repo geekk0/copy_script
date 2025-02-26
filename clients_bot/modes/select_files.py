@@ -13,6 +13,7 @@ from clients_bot.keyboards import create_kb
 from clients_bot.db_manager import DatabaseManager
 from clients_bot.api_manager import YClientsAPIManager
 from clients_bot.models import Record, EnhanceTask
+from clients_bot.utils import prepare_enhance_task, add_to_ai_queue
 
 db_manager = DatabaseManager()
 api_manager = YClientsAPIManager()
@@ -168,9 +169,9 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
             existing_task = await EnhanceTask.get(
                 yclients_record_id=int(selected_record_dict.get('record_id')))
             await callback.message.edit_text(
-                f"Для этой записи выбрано {existing_task.enhanced_files_count} фото"
+                f"Для этой записи выбрано {len(existing_task.files_list)} фото"
                 f" Введите через пробел цифровые значения "
-                f"из названий {10 - existing_task.enhanced_files_count} файлов")
+                f"из названий {10 - len(existing_task.files_list)} файлов")
         else:
             await callback.message.edit_text(
                 "Введите через пробел цифровые значения из названий 10 файлов")
@@ -233,6 +234,9 @@ async def process_digits_set(message: Message, state: FSMContext):
                     list(found_files)
                 )
                 logger.debug(f"created task: {new_task}")
+
+            await prepare_enhance_task(original_photo_path, list(found_files))
+            await add_to_ai_queue(original_photo_path, selected_record_dict.get('studio'))
             await message.answer(f"Файлы для обработки:\n"
                                  f"{' '.join(map(str, found_files))}")
 

@@ -18,6 +18,13 @@ class Client(models.Model):
     username = fields.TextField(null=True)
 
 
+class Package(models.Model):
+    id = fields.IntField(pk=True)
+    name = fields.TextField()
+    photos_number = fields.IntField()
+    price = fields.IntField()
+
+
 class Order(models.Model):
     id = fields.IntField(pk=True)
     client = fields.ForeignKeyField(
@@ -25,6 +32,9 @@ class Order(models.Model):
     photo_path = fields.TextField()
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
     created_at = fields.DatetimeField(auto_now_add=True)
+    package = fields.ForeignKeyField(
+        'models.Package', related_name='orders', on_delete=fields.SET_NULL
+    )
 
 
 class EnhanceTask(models.Model):

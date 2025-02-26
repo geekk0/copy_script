@@ -87,6 +87,9 @@ class EnhanceCaller:
             "hour": folder.split('/')[-1],
         }
 
+        if "_demo" in data["hour"]:
+            data["hour"] = data["hour"].replace("_demo", "")
+
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
 
         response = requests.post(enhance_folder_url, json=data)
@@ -99,11 +102,14 @@ class EnhanceCaller:
             self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
 
         else:
+            result_folder_name = response.json().get('folder_path')
+            if "_demo" in data["hour"]:
+                if "_AI" in result_folder_name:
+                    result_folder_name = result_folder_name.replace("_AI", "_demo_AI")
+                elif "_BW" in result_folder_name:
+                    result_folder_name = result_folder_name.replace("_BW", "_demo_BW")
             self.remove_from_processed_folders(folder)
-            if "bw" in action:
-                return f'{folder}_BW'
-            else:
-                return f'{folder}_AI'
+            return result_folder_name
 
     def get_folder_action(self, folder):
 
