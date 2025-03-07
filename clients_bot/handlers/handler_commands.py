@@ -12,8 +12,7 @@ from aiogram.fsm.context import FSMContext
 # from clients_bot.bot_setup import logger
 from ..middleware import ChatIDChecker
 from ..bot_setup import logger
-from ..modes.select_files import start_select_files_form
-from ..db_manager import DatabaseManager
+from ..modes.select_files import start_select_files_form, enh_back_api
 
 command_router = Router()
 
@@ -31,7 +30,7 @@ async def choose_photos(message: Message, state: FSMContext):
 
 @command_router.message(Command("logout"))
 async def logout(message: Message):
-    await DatabaseManager.remove_client(message.chat.id)
+    await enh_back_api.remove_client(message.from_user.id)
 
 
 # command_router.message.middleware(ChatIDChecker())

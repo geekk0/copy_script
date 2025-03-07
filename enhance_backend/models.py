@@ -5,9 +5,10 @@ from pydantic import BaseModel
 
 class StatusEnum(str, Enum):
     PENDING = "pending"
+    QUEUED = "queued"
+    PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
-    PROCESSING = "processing"
 
 
 class Client(models.Model):

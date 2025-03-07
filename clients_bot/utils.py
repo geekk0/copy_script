@@ -10,6 +10,7 @@ from os import environ
 from clients_bot.bot_setup import logger
 
 load_dotenv()
+backend_port = environ.get('BACKEND_PORT')
 sudo_password = environ.get('SUDOP')
 
 queue_files_mapping = {
@@ -118,3 +119,17 @@ async def read_settings_file(settings_file):
             return {'path_settings': path_settings, 'image_settings': image_settings}
         else:
             return {'path_settings': path_settings}
+
+
+async def remove_demo_folder(folder):
+    logger.debug(f"remove_demo_folder folder: {folder}")
+    command = f"echo {sudo_password} | sudo -S rm -fr '{folder}'"
+    logger.info(command)
+
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = process.communicate()
+
+    logger.info(output)
+
+    if process.returncode == 0:
+        await run_indexing(os.path.dirname(folder))

@@ -1,6 +1,7 @@
 import os
 import json
 import signal
+import subprocess
 import time
 import pytz
 import requests
@@ -9,11 +10,19 @@ import threading
 from configparser import ConfigParser
 from loguru import logger
 from datetime import datetime
+from dotenv import load_dotenv
+from os import environ
 
 from photos_copy_script import FileCopier, read_config
+from tg_bot_aio.bot.utils import sudo_password
 
 exclusive_lock = threading.Lock()
 stop_event = threading.Event()
+
+load_dotenv()
+backend_port = environ.get('BACKEND_PORT')
+
+
 enhancer_host_list = [
     'http://192.168.0.178:8000',
     'http://192.168.0.199:8000'
@@ -74,7 +83,10 @@ class EnhanceCaller:
 
     def enhance_folder(self, folder, action):
 
+        self.bound_logger.debug(f'start enhance folder for {folder}')
+
         if not os.path.exists(folder):
+            self.bound_logger.error(f'folder {folder} does not exist')
             return
 
         enhance_folder_url = self.api_url + "/enhance_folder/"
@@ -91,8 +103,10 @@ class EnhanceCaller:
         if "_demo" in data["hour"]:
             data["hour"] = data["hour"].replace("_demo", "")
             data["demo"] = True
+            send_folder_status_to_backend(folder, "processing")
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
+        self.bound_logger.debug(f'call for route: {enhance_folder_url}')
 
         try:
             response = requests.post(enhance_folder_url, json=data)
@@ -105,12 +119,12 @@ class EnhanceCaller:
                 self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
 
             else:
-                result_folder_name = response.json().get('folder_path')
-                if "_demo" in data["hour"]:
-                    if "_AI" in result_folder_name:
-                        result_folder_name = result_folder_name.replace("_AI", "_demo_AI")
-                    elif "_BW" in result_folder_name:
-                        result_folder_name = result_folder_name.replace("_BW", "_demo_BW")
+                self.bound_logger.debug(f"response data: {response.json()}")
+                result_folder_name = response.json().get('folder_name')
+                self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
+                if "_demo" in result_folder_name:
+                    self.remove_demo_folder(folder)
+                    send_folder_status_to_backend(folder, "completed")
                 self.remove_from_processed_folders(folder)
                 return result_folder_name
         except Exception as e:
@@ -172,11 +186,15 @@ class EnhanceCaller:
                 self.bound_logger.debug(f'studio "{self.studio}": folder is: {folder}')
                 action = self.get_folder_action(folder)
                 self.bound_logger.debug(f'studio "{self.studio}": action: {action}')
-                new_folder = self.enhance_folder(folder, action)
+                old_folder_name = folder.split("/")[-1]
+                new_folder_name = self.enhance_folder(folder, action)
+                self.bound_logger.debug(f"new_folder_name: {new_folder_name}")
+                new_folder = folder.replace(old_folder_name, new_folder_name)
+
                 self.bound_logger.debug(f'studio "{self.studio}": NEW folder is: {new_folder}')
                 folder_is_full = self.check_full_folder(new_folder)
 
-                self.bound_logger.debug(f'studio "{self.studio}": folder {folder} is_full: {folder_is_full}')
+                self.bound_logger.debug(f'studio "{self.studio}": folder {new_folder} is_full: {folder_is_full}')
                 self.bound_logger.debug(f'studio "{self.studio}": new_folder: {new_folder}')
 
                 self.bound_logger.debug(f'skip condition: {not (new_folder and folder_is_full)}')
@@ -258,6 +276,19 @@ class EnhanceCaller:
             json.dump(today_folders, fp=file, indent=4, ensure_ascii=False)
         return today_folders
 
+    def remove_demo_folder(self,folder):
+        logger.debug(f"remove_demo_folder folder: {folder}")
+        command = f"echo {sudo_password} | sudo -S rm -fr '{folder}'"
+        logger.info(command)
+
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate()
+
+        logger.info(output)
+
+        if process.returncode == 0:
+            self.index_folder(os.path.dirname(folder))
+
 
 def get_settings_files():
     settings_files = [os.path.join(os.getcwd(), 'portrait_config.ini'),
@@ -303,6 +334,17 @@ def run_enh_callers_for_host(host):
             # bound_logger.remove(handler_id)
 
         time.sleep(10)
+
+
+def send_folder_status_to_backend(folder, status):
+    url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
+    body = {"folder": folder, "status": status}
+    try:
+        response = requests.post(url, json=body)
+        if response.status_code != 200:
+            logger.error(f"Failed to send folder status to backend: {response.status_code}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
 
 
 def signal_handler(sig, frame):
@@ -360,3 +402,19 @@ if __name__ == '__main__':
 #
 #     logger.remove(handler_id)
 
+
+# def forward_to_bot2(chat_id, message):
+#     url = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
+#     payload = {
+#         "chat_id": chat_id,  # ID чата, куда отправить сообщение
+#         "text": f"Received from Bot1: {message}"  # Текст сообщения
+#     }
+#     response = requests.post(url, json=payload)
+#     return response.json()
+
+# def handle_message(update: Update, context: CallbackContext):
+#     chat_id = update.message.chat_id
+#     message = update.message.text
+#
+#     # Обработка сообщения
+#     update.message.reply_text(f"Бот 2 получил сообщение: {message}")

@@ -3,6 +3,7 @@ import httpx
 from typing import Optional, Dict, Any
 from os import environ
 from dotenv import load_dotenv
+from clients_bot.bot_setup import logger
 
 
 class YClientsAPIManager:
@@ -42,13 +43,13 @@ class YClientsAPIManager:
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=self.headers, json=body)
+            response = await client.post(url, headers=self.headers, json=body, timeout=20)
 
         if response.status_code == 200:
             data = response.json()
             return data
         else:
-            print(f"Ошибка {response.status_code}: {response.text}")
+            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
 
     async def get_client_records_by_client_id(self, client_id: str) -> Optional[Dict[str, Any]]:
@@ -63,10 +64,8 @@ class YClientsAPIManager:
         if response.status_code == 200:
             return data
         else:
-            print(f"Ошибка {response.status_code}: {response.text}")
+            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
-
-
 
     async def create_client(self, client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -80,5 +79,5 @@ class YClientsAPIManager:
         if response.status_code in [200, 201]:
             return response.json()
         else:
-            print(f"Ошибка {response.status_code}: {response.text}")
+            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
