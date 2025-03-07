@@ -99,7 +99,6 @@ async def check_record_before_create_task(record: dict, folder_path, client_id):
     if len(existing_session_tasks) > 0:
         existing_task = existing_session_tasks[0]
         logger.debug(f"existing task response: {existing_task}")
-        logger.debug(f"enhanced_files_count: {existing_task.get("enhanced_files_count")}")
         if (existing_task.get('enhanced_files_count') +
                 len(existing_task.get('files_list')) < 10):
             result = {
