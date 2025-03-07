@@ -1,4 +1,5 @@
 import logging
+import subprocess
 
 import httpx
 
@@ -7,12 +8,12 @@ from fastapi import APIRouter, HTTPException
 from tortoise.exceptions import DoesNotExist
 from os import environ
 
-from enhance_backend.models import Client, EnhanceTask, StatusEnum
-from enhance_backend.schemas import ClientResponse, ClientRequest, EnhanceTaskResponse, EnhanceTaskRequest, \
+from enhance_backend.models import StatusEnum
+from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
     EnhanceTaskUpdate
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
-
+from clients_bot.utils import remove_demo_folder
 
 tasks_router = APIRouter(prefix="/tasks")
 
@@ -71,6 +72,7 @@ async def remove_task(task_id: int) -> dict[str, str]:
 async def task_is_completed(folder_dict: dict[str, str]) -> None:
     try:
         tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(folder_dict.get("folder"))
+        await remove_demo_folder(folder_dict.get("folder"))
         print(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if len(tasks_found_by_folder) == 0:
             return
@@ -129,5 +131,4 @@ async def share_folder(folder_path: str) -> str:
                           f"{response.status_code}, {response.text}")
     except Exception as e:
         logging.error(f"Произошла ошибка в share_folder: {e}")
-
 
