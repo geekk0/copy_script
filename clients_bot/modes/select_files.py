@@ -280,10 +280,6 @@ async def process_digits_set(message: Message, state: FSMContext):
             except Exception as e:
                 logger.error(f"error add_to_ai_queue: {e}")
 
-            try:
-                await remove_demo_folder(original_photo_path + "_demo")
-            except Exception as e:
-                logger.error(f"error remove_demo_folder: {e}")
             await message.answer(f"Файлы для обработки:\n"
                                  f"{' '.join(map(str, found_files))}")
 
