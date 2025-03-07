@@ -280,8 +280,11 @@ async def process_digits_set(message: Message, state: FSMContext):
             except Exception as e:
                 logger.error(f"error add_to_ai_queue: {e}")
 
-            await message.answer(f"Файлы для обработки:\n"
-                                 f"{' '.join(map(str, found_files))}")
+            await message.answer(
+                f"Выбраны для обработки:\n"
+                f"{' '.join(map(str, found_files))}\n"
+                f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+            )
 
     except Exception as e:
         logger.error(f"{e}")
