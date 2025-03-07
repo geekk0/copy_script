@@ -124,7 +124,7 @@ class EnhanceCaller:
                 self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
                 if "_demo" in result_folder_name:
                     self.remove_demo_folder(folder)
-                    send_folder_status_to_backend(folder, "completed")
+                    send_folder_status_to_backend(folder, "completed", completed=True)
                 self.remove_from_processed_folders(folder)
                 return result_folder_name
         except Exception as e:
@@ -336,8 +336,10 @@ def run_enh_callers_for_host(host):
         time.sleep(10)
 
 
-def send_folder_status_to_backend(folder, status):
-    url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
+def send_folder_status_to_backend(folder, status, completed=False):
+    url = f"http://127.0.0.1:{str(backend_port)}/tasks/status"
+    if completed:
+        url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
     body = {"folder": folder, "status": status}
     try:
         response = requests.post(url, json=body)

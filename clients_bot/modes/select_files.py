@@ -276,7 +276,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                     studios_mapping[selected_record_dict.get('studio')],
                     True
                 )
-                await enh_back_api.update_task_status(original_photo_path, "queued")
+                await enh_back_api.change_task_status(original_photo_path, "queued")
             except Exception as e:
                 logger.error(f"error add_to_ai_queue: {e}")
 

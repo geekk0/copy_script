@@ -57,6 +57,28 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@tasks_router.patch("/status")
+async def change_task_status(folder_path: str, status: str):
+    try:
+        status_enum = getattr(StatusEnum, status.upper(), None)
+        if status_enum is None:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+        tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(folder_path)
+        print(f"tasks_found_by_folder: {tasks_found_by_folder}")
+        if not tasks_found_by_folder:
+            return
+        else:
+            found_task = tasks_found_by_folder[0]
+        task_update_data = (
+            EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
+        )
+        await db_manager.update_enhance_task(found_task.id, task_update_data)
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Task not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @tasks_router.delete("")
 async def remove_task(task_id: int) -> dict[str, str]:
     try:
@@ -72,7 +94,6 @@ async def remove_task(task_id: int) -> dict[str, str]:
 async def task_is_completed(folder_dict: dict[str, str]) -> None:
     try:
         tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(folder_dict.get("folder"))
-        await remove_demo_folder(folder_dict.get("folder"))
         print(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if len(tasks_found_by_folder) == 0:
             return
@@ -95,6 +116,8 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
         if folder_link:
             text += f"\nссылка на скачивание: {folder_link}"
         await clients_bot.send_notification(client.chat_id, text)
+        await remove_demo_folder(folder_dict.get("folder"))
+
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:

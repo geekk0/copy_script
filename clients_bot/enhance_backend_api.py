@@ -100,9 +100,9 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в update_task: {e}")
             return False
 
-    async def update_task_status(self, folder, status):
+    async def change_task_status(self, folder, status):
         method = "POST"
-        endpoint = f"/tasks/completed"
+        endpoint = f"/tasks/status"
         body = {"folder": folder, "status": status}
         try:
             response = await self.send_request(method, endpoint, json=body)
@@ -110,3 +110,14 @@ class EnhanceBackendAPI:
         except Exception as e:
             logger.error(f"Произошла ошибка в update_task: {e}")
             return False
+
+    # async def call_backend_completed(self, folder):
+    #     method = "POST"
+    #     endpoint = f"/tasks/completed"
+    #     body = {"folder": folder}
+    #     try:
+    #         response = await self.send_request(method, endpoint, json=body)
+    #         return response.json()
+    #     except Exception as e:
+    #         logger.error(f"Произошла ошибка в update_task: {e}")
+    #         return False
