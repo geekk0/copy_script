@@ -14,6 +14,8 @@ from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
 from clients_bot.utils import remove_demo_folder
+from bs4 import BeautifulSoup
+
 
 tasks_router = APIRouter(prefix="/tasks")
 
@@ -111,13 +113,14 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
         )
         await db_manager.update_enhance_task(found_task.id, task_update_data)
 
-        folder_link = await share_folder(found_task.folder_path)
+        folder_link = await share_folder(folder_path + "_AI")
+        print(f"folder_link: {folder_link}")
 
         clients_bot = ClientsBot()
         print(f"chat_id: {client.chat_id}")
         text = f"Ваша папка обработана"
         if folder_link:
-            text += f"\nссылка на скачивание: {folder_link}"
+            text += f"\nссылка на скачивание:\n{folder_link}"
         await clients_bot.send_notification(client.chat_id, text)
         await remove_demo_folder(folder_dict.get("folder"))
 
@@ -129,7 +132,7 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
 
 async def share_folder(folder_path: str) -> str:
     try:
-        actual_folder_path = folder_path.replace('/cloud/reflect/files', '')
+        actual_folder_path = folder_path.replace('/cloud/reflect/files/', '')
         url = "https://cloud.reflect-studio.ru/ocs/v2.php/apps/files_sharing/api/v1/shares"
         body = {
             "path": actual_folder_path,
@@ -149,13 +152,19 @@ async def share_folder(folder_path: str) -> str:
                 auth=(username, password)
             )
 
-        if response.status_code == 200:
-            share_info = response.json()
-            share_url = share_info['ocs']['data']['url']
-            return share_url
-        else:
-            logging.error(f"Произошла ошибка в share_folder: "
-                          f"{response.status_code}, {response.text}")
+            if response.status_code != 200:
+                logging.error(f"Ошибка запроса: {response.status_code}, текст: {response.text}")
+                return ""
+
+            soup = BeautifulSoup(response.text, "lxml-xml")
+            link = soup.find("url")  # Ищем тег <url> в XML
+
+            if link:
+                folder_link = link.text.strip()  # Получаем только текст из тега <url>
+                print(f"folder_link: {folder_link}")  # Печатаем чистую ссылку
+                return folder_link
+            else:
+                logging.error("URL не найден в ответе сервера")
+                return ""
     except Exception as e:
         logging.error(f"Произошла ошибка в share_folder: {e}")
-
