@@ -59,11 +59,12 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
 
 @tasks_router.patch("/status")
 async def change_task_status(folder_path: str, status: str):
+    task_folder_path = folder_path.replace('_demo', '')
     try:
         status_enum = getattr(StatusEnum, status.upper(), None)
         if status_enum is None:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
-        tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(folder_path)
+        tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
         print(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if not tasks_found_by_folder:
             return
