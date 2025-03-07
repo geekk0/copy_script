@@ -129,9 +129,10 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
 
 async def share_folder(folder_path: str) -> str:
     try:
+        actual_folder_path = folder_path.replace('/cloud/reflect/files', '')
         url = "https://cloud.reflect-studio.ru/ocs/v2.php/apps/files_sharing/api/v1/shares"
         body = {
-            "path": folder_path,
+            "path": actual_folder_path,
             "shareType": "3",
             "permissions": "1"
         }
@@ -151,7 +152,7 @@ async def share_folder(folder_path: str) -> str:
         if response.status_code == 200:
             share_info = response.json()
             share_url = share_info['ocs']['data']['url']
-            return f"Ссылка на расшаренную папку: {share_url}"
+            return share_url
         else:
             logging.error(f"Произошла ошибка в share_folder: "
                           f"{response.status_code}, {response.text}")
