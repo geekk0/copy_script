@@ -342,7 +342,10 @@ def send_folder_status_to_backend(folder, status, completed=False):
         url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
     body = {"folder": folder, "status": status}
     try:
-        response = requests.post(url, json=body)
+        if completed:
+            response = requests.post(url, json=body)
+        else:
+            response = requests.patch(url, json=body)
         if response.status_code != 200:
             logger.error(f"Failed to send folder status to backend: {response.status_code}")
     except Exception as e:

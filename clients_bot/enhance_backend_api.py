@@ -101,7 +101,7 @@ class EnhanceBackendAPI:
             return False
 
     async def change_task_status(self, folder, status):
-        method = "POST"
+        method = "PATCH"
         endpoint = f"/tasks/status"
         body = {"folder": folder, "status": status}
         try:
