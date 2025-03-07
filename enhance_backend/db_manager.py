@@ -77,7 +77,7 @@ class DatabaseManager:
 
     @staticmethod
     async def search_enhance_tasks_by_folder(folder):
-        tasks = await EnhanceTask.filter(folder_path=folder, status="pending")
+        tasks = await EnhanceTask.filter(folder_path=folder)
         return tasks
 
     @staticmethod
