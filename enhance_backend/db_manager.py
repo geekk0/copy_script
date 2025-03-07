@@ -80,6 +80,7 @@ class DatabaseManager:
         tasks = await EnhanceTask.filter(folder_path=folder)
         return tasks
 
+
     @staticmethod
     async def get_enhance_tasks_by_client(client_id: int):
         tasks = await EnhanceTask.filter(client_id=client_id)
