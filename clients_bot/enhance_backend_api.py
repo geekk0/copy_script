@@ -121,3 +121,24 @@ class EnhanceBackendAPI:
     #     except Exception as e:
     #         logger.error(f"Произошла ошибка в update_task: {e}")
     #         return False
+
+    async def get_available_packages(self):
+        method = "GET"
+        endpoint = "/packages/list"
+        try:
+            response = await self.send_request(method, endpoint)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Произошла ошибка в get_available_packages: {e}")
+            return False
+
+    async def get_package_by_task_id(self, task_id: int):
+        method = "GET"
+        endpoint = "/packages/task_id"
+        params = {"task_id": task_id}
+        try:
+            response = await self.send_request(method, endpoint, params=params)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Произошла ошибка в get_package_by_task_id: {e}")
+            return False

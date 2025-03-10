@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from enhance_backend.routers.clients import clients_router
 from enhance_backend.routers.tasks import tasks_router
+from enhance_backend.routers.packages import packages_router
 
 load_dotenv()
 
@@ -39,6 +40,7 @@ async def shutdown():
 
 app.include_router(clients_router)
 app.include_router(tasks_router)
+app.include_router(packages_router)
 
 
 if __name__ == "__main__":

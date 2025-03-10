@@ -97,12 +97,12 @@ class EnhanceCaller:
             "month": folder.split('/')[-3],
             "day": folder.split('/')[-2],
             "hour": folder.split('/')[-1],
-            "demo": False
+            "task": False
         }
 
-        if "_demo" in data["hour"]:
-            data["hour"] = data["hour"].replace("_demo", "")
-            data["demo"] = True
+        if "_task" in data["hour"]:
+            data["hour"] = data["hour"].replace("_task", "")
+            data["task"] = True
             send_folder_status_to_backend(folder, "processing")
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
@@ -122,8 +122,8 @@ class EnhanceCaller:
                 self.bound_logger.debug(f"response data: {response.json()}")
                 result_folder_name = response.json().get('folder_name')
                 self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
-                if "_demo" in result_folder_name:
-                    self.remove_demo_folder(folder)
+                if "_task" in result_folder_name:
+                    self.remove_task_folder(folder)
                     send_folder_status_to_backend(folder, "completed", completed=True)
                 self.remove_from_processed_folders(folder)
                 return result_folder_name
@@ -276,8 +276,8 @@ class EnhanceCaller:
             json.dump(today_folders, fp=file, indent=4, ensure_ascii=False)
         return today_folders
 
-    def remove_demo_folder(self,folder):
-        logger.debug(f"remove_demo_folder folder: {folder}")
+    def remove_task_folder(self,folder):
+        logger.debug(f"remove_task_folder folder: {folder}")
         command = f"echo {sudo_password} | sudo -S rm -fr '{folder}'"
         logger.info(command)
 

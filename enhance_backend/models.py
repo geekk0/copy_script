@@ -24,6 +24,7 @@ class Package(models.Model):
     name = fields.TextField()
     photos_number = fields.IntField()
     price = fields.IntField()
+    published = fields.BooleanField(default=False)
 
 
 class Order(models.Model):
@@ -48,6 +49,9 @@ class EnhanceTask(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
     enhanced_files_count = fields.IntField(default=0)
     files_list = fields.JSONField(null=True)
+    package = fields.ForeignKeyField(
+        'models.Package', related_name='enhance_tasks', on_delete=fields.CASCADE
+    )
 
 
 class Record(BaseModel):

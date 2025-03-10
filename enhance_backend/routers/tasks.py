@@ -13,7 +13,7 @@ from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
     EnhanceTaskUpdate
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
-from clients_bot.utils import remove_demo_folder
+from clients_bot.utils import remove_task_folder
 from bs4 import BeautifulSoup
 
 
@@ -62,7 +62,7 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
 @tasks_router.patch("/status")
 async def change_task_status(folder_path: str, status: str):
     try:
-        task_folder_path = folder_path.replace('_demo', '')
+        task_folder_path = folder_path.replace('_task', '')
         status_enum = getattr(StatusEnum, status.upper(), None)
         if status_enum is None:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
@@ -97,7 +97,7 @@ async def remove_task(task_id: int) -> dict[str, str]:
 async def task_is_completed(folder_dict: dict[str, str]) -> None:
     folder_path = folder_dict.get("folder")
     try:
-        task_folder_path = folder_path.replace('_demo', '')
+        task_folder_path = folder_path.replace('_task', '')
         tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
         print(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if len(tasks_found_by_folder) == 0:
@@ -122,7 +122,7 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
         if folder_link:
             text += f"\nссылка на скачивание:\n{folder_link}"
         await clients_bot.send_notification(client.chat_id, text)
-        await remove_demo_folder(folder_dict.get("folder"))
+        await remove_task_folder(folder_dict.get("folder"))
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")

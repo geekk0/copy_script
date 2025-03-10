@@ -33,12 +33,12 @@ async def clear_photo_folder(folder_path):
 
 async def prepare_enhance_task(folder: str, files: list):
     logger.debug(f"folder: {folder}, files: {files}")
-    demo_folder = folder + '_demo'
-    if not os.path.exists(demo_folder):
-        os.mkdir(demo_folder)
+    task_folder = folder + '_task'
+    if not os.path.exists(task_folder):
+        os.mkdir(task_folder)
     for file in files:
-        shutil.copy(os.path.join(folder, file), demo_folder)
-    await run_indexing(demo_folder)
+        shutil.copy(os.path.join(folder, file), task_folder)
+    await run_indexing(task_folder)
 
 
 async def run_indexing(path):
@@ -59,12 +59,12 @@ async def run_indexing(path):
         return "Ошибка индексации"
 
 
-async def add_to_ai_queue(folder, studio_name, demo_mode=False):
+async def add_to_ai_queue(folder, studio_name, task_mode=False):
     ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
 
     if not any((task.get("folder_path") == folder and task.get("action") is None) for task in ai_index_queue):
-        if demo_mode:
+        if task_mode:
             ai_index_queue.insert(0, {"folder_path": folder, "action": None})
         else:
             ai_index_queue.append({"folder_path": folder, "action": None})
@@ -121,8 +121,8 @@ async def read_settings_file(settings_file):
             return {'path_settings': path_settings}
 
 
-async def remove_demo_folder(folder):
-    logger.debug(f"remove_demo_folder folder: {folder}")
+async def remove_task_folder(folder):
+    logger.debug(f"remove_task_folder folder: {folder}")
     command = f"echo {sudo_password} | sudo -S rm -fr '{folder}'"
     logger.info(command)
 

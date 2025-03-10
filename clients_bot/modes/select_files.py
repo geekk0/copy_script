@@ -1,3 +1,4 @@
+import json
 import os
 
 from aiogram.fsm.context import FSMContext
@@ -11,7 +12,7 @@ from clients_bot.bot_setup import logger
 from clients_bot.bot_setup import form_router
 from clients_bot.keyboards import create_kb
 from clients_bot.api_manager import YClientsAPIManager
-from clients_bot.utils import prepare_enhance_task, add_to_ai_queue, remove_demo_folder
+from clients_bot.utils import prepare_enhance_task, add_to_ai_queue, remove_task_folder
 from clients_bot.enhance_backend_api import EnhanceBackendAPI
 
 api_manager = YClientsAPIManager()
@@ -21,6 +22,7 @@ enh_back_api = EnhanceBackendAPI()
 class SelectFilesForm(StatesGroup):
     create_user = State()
     get_user_records = State()
+    choose_package = State()
     process_selected_record = State()
     process_digits_set = State()
 
@@ -98,9 +100,10 @@ async def check_record_before_create_task(record: dict, folder_path, client_id):
                               == record.get('record_id')]
     if len(existing_session_tasks) > 0:
         existing_task = existing_session_tasks[0]
+        package = await enh_back_api.get_package_by_task_id(existing_task.get('id'))
         logger.debug(f"existing task response: {existing_task}")
         if (existing_task.get('enhanced_files_count') +
-                len(existing_task.get('files_list')) < 10):
+                len(existing_task.get('files_list')) < package.get('photos_number')):
             result = {
                 'status': True, 'message': None,
                 'exists': True, 'task': existing_task
@@ -169,12 +172,12 @@ async def get_records(message: Message, state: FSMContext):
     record_dates = [record.get("date") for record in records]
 
     records_kb = await create_kb(record_dates, record_ids)
-    await state.set_state(SelectFilesForm.process_selected_record)
+    await state.set_state(SelectFilesForm.choose_package)
     await message.answer(text="Выберите нужную запись", reply_markup=records_kb)
 
 
-@form_router.callback_query(SelectFilesForm.process_selected_record)
-async def process_selected_record(callback: CallbackQuery, state: FSMContext):
+@form_router.callback_query(SelectFilesForm.choose_package)
+async def choose_package(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     logger.debug(f"callback.data: {callback.data}")
     selected_record_dict = [x for x in data.get('records_objects')
@@ -189,6 +192,28 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
         selected_record_dict=selected_record_dict,
         checks_result=checks_result,
     )
+    await state.set_state(SelectFilesForm.process_selected_record)
+    available_packages = await enh_back_api.get_available_packages()
+    logger.debug(f"available_packages: {available_packages}")
+    text = f"Выберите пакет"
+
+    packages_labels = [f"{package.get('name')} - {str(package.get('price'))} руб"
+                       for package in available_packages]
+    packages_callbacks = [str(i) for i in range(len(available_packages))]
+    await state.update_data(available_packages=available_packages)
+    packages_kb = await create_kb(packages_labels, packages_callbacks)
+    await callback.message.edit_text(text=text, reply_markup=packages_kb)
+
+
+@form_router.callback_query(SelectFilesForm.process_selected_record)
+async def process_selected_record(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    checks_result = data.get('checks_result')
+    logger.debug(f"selected_package: "
+                 f"{data.get('available_packages')[int(callback.data)]}")
+    selected_package = data.get('available_packages')[int(callback.data)]
+    await state.update_data(
+        selected_package=selected_package)
     if checks_result.get('status'):
         await state.set_state(SelectFilesForm.process_digits_set)
         if checks_result.get('exists'):
@@ -196,10 +221,10 @@ async def process_selected_record(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(
                 f"Для этой записи выбрано {len(existing_task.get('files_list'))} фото"
                 f" Введите через пробел цифровые значения "
-                f"из названий {10 - len(existing_task.get('files_list'))} файлов")
+                f"из названий {selected_package.get('photos_number') - len(existing_task.get('files_list'))} файлов")
         else:
             await callback.message.edit_text(
-                "Введите через пробел цифровые значения из названий 10 файлов")
+                f"Введите через пробел цифровые значения из названий {selected_package.get('photos_number')} файлов")
     else:
         await callback.message.edit_text(f"{checks_result.get('message')}",
                                          reply_markup=callback.message.reply_markup)
@@ -211,13 +236,14 @@ async def process_digits_set(message: Message, state: FSMContext):
     original_photo_path = data.get('original_photo_path')
     checks_result = data.get('checks_result')
     selected_record_dict = data.get('selected_record_dict')
+    selected_package = data.get('selected_package')
 
     photos_digits_set = set(message.text.split(" "))
     found_files = set()
 
     logger.debug(f"photos_digits_set: {photos_digits_set}")
 
-    if len(list(message.text.split(" "))) > 10:
+    if len(list(message.text.split(" "))) > selected_package.get('photos_number'):
         await message.answer("Количество фото превышено")
 
     try:
@@ -243,7 +269,8 @@ async def process_digits_set(message: Message, state: FSMContext):
             if checks_result.get('exists'):
                 existing_task = checks_result.get('task')
 
-                if existing_task.get('enhanced_files_count') + len(found_files) > 10:
+                if (existing_task.get('enhanced_files_count') +
+                        len(found_files) > selected_package.get('photos_number')):
                     await message.answer("Общее количество выбранных фото превышено")
                 else:
                     existing_task['files_list'] = (
@@ -261,7 +288,8 @@ async def process_digits_set(message: Message, state: FSMContext):
                         'folder_path': original_photo_path,
                         'yclients_record_id': int(selected_record_dict.get('record_id')),
                         'files_list': list(found_files),
-                        "client_chat_id": message.chat.id
+                        "client_chat_id": message.chat.id,
+                        'package_id': data.get('selected_package').get('id')
                     }
                 )
                 logger.debug(f"created task: {new_task}")
@@ -272,7 +300,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                 logger.error(f"error prepare_enhance_task: {e}")
             try:
                 await add_to_ai_queue(
-                    original_photo_path + "_demo",
+                    original_photo_path + "_task",
                     studios_mapping[selected_record_dict.get('studio')],
                     True
                 )

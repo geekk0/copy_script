@@ -2,7 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from tortoise.contrib.pydantic import pydantic_model_creator
 
-from enhance_backend.models import EnhanceTask, StatusEnum
+from enhance_backend.models import EnhanceTask, StatusEnum, Package
 
 
 class ClientRequest(BaseModel):
@@ -25,9 +25,10 @@ class EnhanceTaskRequest(BaseModel):
     folder_path: str
     yclients_record_id: int
     files_list: list
+    package_id: int
 
 
-EnhanceTaskResponse = pydantic_model_creator(EnhanceTask)
+EnhanceTaskResponse = pydantic_model_creator(EnhanceTask) # , include=('client', 'package')
 
 
 class EnhanceTaskUpdate(BaseModel):
@@ -35,4 +36,8 @@ class EnhanceTaskUpdate(BaseModel):
     status: StatusEnum | None = None
     enhanced_files_count: int | None = None
     files_list: list | None = None
+
+
+PackageRequest = pydantic_model_creator(Package, exclude=("id",))
+PackageResponse = pydantic_model_creator(Package)
 

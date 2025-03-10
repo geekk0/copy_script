@@ -1,6 +1,7 @@
 from fastapi import HTTPException
+from requests.packages import package
 
-from enhance_backend.models import Client, Order, EnhanceTask
+from enhance_backend.models import Client, Order, EnhanceTask, Package
 from tortoise.exceptions import DoesNotExist
 
 from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse
@@ -80,7 +81,6 @@ class DatabaseManager:
         tasks = await EnhanceTask.filter(folder_path=folder)
         return tasks
 
-
     @staticmethod
     async def get_enhance_tasks_by_client(client_id: int):
         tasks = await EnhanceTask.filter(client_id=client_id)
@@ -92,11 +92,13 @@ class DatabaseManager:
             task_data: EnhanceTaskResponse
     ) -> EnhanceTaskResponse:
         client = await Client.get(chat_id=client_chat_id)
+        package = await Package.get(id=task_data.package_id)
         task = await EnhanceTask.create(
             client=client,
             folder_path=task_data.folder_path,
             yclients_record_id=task_data.yclients_record_id,
-            files_list=task_data.files_list
+            files_list=task_data.files_list,
+            package=package
         )
         return EnhanceTaskResponse.model_validate(task)
 
@@ -128,3 +130,24 @@ class DatabaseManager:
         task = await EnhanceTask.get_or_none(id=task_id)
         if task:
             await task.delete()
+
+    @staticmethod
+    async def add_package(package_data: Package) -> Package:
+        package = await Package.create(
+            name=package_data.name,
+            photos_number=package_data.photos_number,
+            price=package_data.price
+        )
+        return package
+
+    @staticmethod
+    async def delete_package(package_id: int):
+        package = await Package.get_or_none(id=package_id)
+        if package:
+            await package.delete()
+
+    @staticmethod
+    async def get_package_by_task_id(task_id: int):
+        task = await EnhanceTask.get_or_none(id=task_id)
+        if task:
+            return task.package
