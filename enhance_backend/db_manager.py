@@ -147,7 +147,7 @@ class DatabaseManager:
             await package.delete()
 
     @staticmethod
-    async def get_package_by_task_id(task_id: int):
+    async def get_package_by_task_id(task_id: int) -> Package:
         task = await EnhanceTask.get_or_none(id=task_id)
         if task:
-            return task.package
+            return await task.package
