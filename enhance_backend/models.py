@@ -18,13 +18,20 @@ class Client(models.Model):
     phone_number = fields.TextField()
     username = fields.TextField(null=True)
 
+    class Meta:
+        table = "clients"
+
 
 class Package(models.Model):
+
     id = fields.IntField(pk=True)
     name = fields.TextField()
     photos_number = fields.IntField()
     price = fields.IntField()
     published = fields.BooleanField(default=False)
+
+    class Meta:
+        table = "packages"
 
 
 class Order(models.Model):
@@ -38,20 +45,26 @@ class Order(models.Model):
         'models.Package', related_name='orders', on_delete=fields.CASCADE
     )
 
+    class Meta:
+        table = "orders"
+
 
 class EnhanceTask(models.Model):
     id = fields.IntField(pk=True)
     client = fields.ForeignKeyField(
         'models.Client', related_name='enhance_tasks', on_delete=fields.CASCADE)
     folder_path = fields.TextField()
-    yclients_record_id = fields.BigIntField(unique=True)
+    yclients_record_id = fields.BigIntField()
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
     created_at = fields.DatetimeField(auto_now_add=True)
     enhanced_files_count = fields.IntField(default=0)
-    files_list = fields.JSONField(null=True)
+    files_list = fields.JSONField(default=list)
     package = fields.ForeignKeyField(
         'models.Package', related_name='enhance_tasks', on_delete=fields.CASCADE
     )
+
+    class Meta:
+        table = "enhancetasks"
 
 
 class Record(BaseModel):

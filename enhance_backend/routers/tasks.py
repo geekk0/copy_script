@@ -5,12 +5,13 @@ import httpx
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
+from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.exceptions import DoesNotExist
 from os import environ
 
-from enhance_backend.models import StatusEnum
+from enhance_backend.models import StatusEnum, Client, Package
 from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
-    EnhanceTaskUpdate
+    EnhanceTaskUpdate, EnhanceTaskResponseWithDetails, ClientResponse, PackageResponse
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
 from clients_bot.utils import remove_task_folder
@@ -22,13 +23,27 @@ tasks_router = APIRouter(prefix="/tasks")
 db_manager = DatabaseManager()
 load_dotenv()
 
+
 @tasks_router.get("")
 async def get_enhance_tasks_by_client(client_id: int)\
-        -> list[EnhanceTaskResponse]:
+        -> list[EnhanceTaskResponseWithDetails]:
     try:
         tasks = await db_manager.get_clients_enhance_tasks(client_id)
-        return [EnhanceTaskResponse.model_validate(task, from_attributes=True)
-                for task in tasks]
+        result = [
+            EnhanceTaskResponseWithDetails(
+                id=task.id,
+                client=ClientResponse.model_validate(task.client, from_attributes=True),
+                folder_path=task.folder_path,
+                yclients_record_id=task.yclients_record_id,
+                status=task.status,
+                created_at=task.created_at.isoformat(),
+                enhanced_files_count=task.enhanced_files_count,
+                files_list=task.files_list or [],
+                package=PackageResponse.model_validate(task.package, from_attributes=True),
+            )
+            for task in tasks
+        ]
+        return result
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")

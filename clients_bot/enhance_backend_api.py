@@ -40,8 +40,7 @@ class EnhanceBackendAPI:
             if response.status_code == 404:
                 return False
         except Exception as e:
-            if e.status_code != 404:
-                logger.error(f"Произошла ошибка в get_user_by_chat_id: {e}")
+            logger.error(f"Произошла ошибка в get_user_by_chat_id: {e}")
             return False
 
     async def add_client(self, client_data: dict):

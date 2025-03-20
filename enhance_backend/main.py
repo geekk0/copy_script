@@ -6,6 +6,7 @@ from tortoise import Tortoise
 from os import environ
 from dotenv import load_dotenv
 
+from enhance_backend.database.db_config import DATABASE_URL
 from enhance_backend.routers.clients import clients_router
 from enhance_backend.routers.tasks import tasks_router
 from enhance_backend.routers.packages import packages_router
@@ -22,14 +23,10 @@ async def lifespan(application: FastAPI) -> AsyncContextManager[None]:
 
 app = FastAPI(lifespan=lifespan)
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-print(current_dir)
-db_path = os.path.join(current_dir, 'database', 'main.db')
-
 
 async def init_db():
     await Tortoise.init(
-        db_url=f"sqlite:///{db_path}",
+        db_url=DATABASE_URL,
         modules={"models": ["enhance_backend.models"]}
     )
     await Tortoise.generate_schemas()

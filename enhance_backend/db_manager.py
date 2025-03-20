@@ -1,10 +1,10 @@
 from fastapi import HTTPException
-from requests.packages import package
+# from requests.packages import package
 
 from enhance_backend.models import Client, Order, EnhanceTask, Package
 from tortoise.exceptions import DoesNotExist
 
-from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse
+from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse, PackageResponse
 
 
 class DatabaseManager:
@@ -103,13 +103,11 @@ class DatabaseManager:
         return EnhanceTaskResponse.model_validate(task)
 
     @staticmethod
-    async def get_clients_enhance_tasks(client_id: int) -> list[EnhanceTask]:
-        """
-        Получает все задачи на улучшение для клиента.
-        Возвращает список задач.
-        """
+    async def get_clients_enhance_tasks(
+            client_id: int) -> list[EnhanceTask]:
         client = await Client.get(id=client_id)
-        return await EnhanceTask.filter(client_id=client.id)
+        return await EnhanceTask.filter(
+            client_id=client.id).prefetch_related('client', 'package')
 
     @staticmethod
     async def update_enhance_task(task_id: int, task_data: EnhanceTaskResponse) -> EnhanceTask:

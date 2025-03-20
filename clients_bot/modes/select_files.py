@@ -22,8 +22,9 @@ enh_back_api = EnhanceBackendAPI()
 class SelectFilesForm(StatesGroup):
     create_user = State()
     get_user_records = State()
-    choose_package = State()
-    process_selected_record = State()
+    show_user_tasks = State()
+    process_selected_task = State()
+    add_photos = State()
     process_digits_set = State()
 
 
@@ -172,62 +173,137 @@ async def get_records(message: Message, state: FSMContext):
     record_dates = [record.get("date") for record in records]
 
     records_kb = await create_kb(record_dates, record_ids)
-    await state.set_state(SelectFilesForm.choose_package)
+    await state.set_state(SelectFilesForm.show_user_tasks)
     await message.answer(text="Выберите нужную запись", reply_markup=records_kb)
 
 
-@form_router.callback_query(SelectFilesForm.choose_package)
-async def choose_package(callback: CallbackQuery, state: FSMContext):
+@form_router.callback_query(SelectFilesForm.show_user_tasks)
+async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    logger.debug(f"callback.data: {callback.data}")
-    selected_record_dict = [x for x in data.get('records_objects')
-                            if x.get('record_id') == int(callback.data)][0]
     client_id = data.get('client_id')
+    logger.debug(f"show_user_tasks")
+    logger.debug(f"callback data: {callback.data}")
+    if callback.data == "go_back":
+        # await callback.message.delete()
+        selected_record_dict = data.get('selected_record_dict')
+    else:
+        selected_record_dict = [x for x in data.get('records_objects')
+                                if x.get('record_id') == int(callback.data)][0]
     logger.debug(f"selected record: {selected_record_dict}")
-    original_photo_path = await get_record_folder(selected_record_dict)
-    checks_result = await check_record_before_create_task(
-        selected_record_dict, original_photo_path, client_id)
-    await state.update_data(
-        original_photo_path=original_photo_path,
-        selected_record_dict=selected_record_dict,
-        checks_result=checks_result,
-    )
-    await state.set_state(SelectFilesForm.process_selected_record)
-    available_packages = await enh_back_api.get_available_packages()
-    logger.debug(f"available_packages: {available_packages}")
-    text = f"Выберите пакет"
+    existing_user_tasks = await enh_back_api.get_client_tasks(client_id)
+    tasks_for_current_record = [
+        task for task in existing_user_tasks
+        if task.get("yclients_record_id") == selected_record_dict.get("record_id")]
+    logger.debug(f"existing_user_tasks: {existing_user_tasks}")
+    logger.debug(f"tasks_for_current_record: {tasks_for_current_record}")
+    btn_names = [(f"Пакет: {task.get('package').get('name')},\n"
+                  f"Выбрано: {len(task.get('files_list'))}")
+                 for task in tasks_for_current_record]
+    btn_names.append("Новый пакет")
+    btn_values = [str(task.get('id')) for task in tasks_for_current_record]
+    btn_values.append("new_package")
+    select_package_kb = await create_kb(btn_names, btn_values)
+    await state.update_data(tasks_list=tasks_for_current_record,
+                            selected_record_dict=selected_record_dict)
+    await callback.message.edit_text(
+        text="Ваши пакеты для выбранной записи:", reply_markup=select_package_kb)
+    await state.set_state(SelectFilesForm.process_selected_task)
 
-    packages_labels = [f"{package.get('name')} - {str(package.get('price'))} руб"
-                       for package in available_packages]
-    packages_callbacks = [str(i) for i in range(len(available_packages))]
-    await state.update_data(available_packages=available_packages)
-    packages_kb = await create_kb(packages_labels, packages_callbacks)
-    await callback.message.edit_text(text=text, reply_markup=packages_kb)
+
+@form_router.callback_query(SelectFilesForm.process_selected_task)
+async def process_selected_task(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    logger.debug("process_selected_task")
+    logger.debug(f"callback.data: {callback.data}")
+    tasks_list = data.get("tasks_list")
+    client_id = data.get('client_id')
+    selected_record_dict = data.get("selected_record_dict")
+    selected_task_dict = None
+    as_new_package = data.get("as_new_package")
+    await state.update_data(as_new_package=False)
+    if "go_back" in callback.data:
+        selected_task_dict = data.get('selected_task_dict')
+
+    if callback.data == "new_package" or as_new_package:
+        original_photo_path = await get_record_folder(selected_record_dict)
+        checks_result = await check_record_before_create_task(
+            selected_record_dict, original_photo_path, client_id)
+        await state.update_data(
+            original_photo_path=original_photo_path,
+            checks_result=checks_result,
+        )
+        available_packages = await enh_back_api.get_available_packages()
+        logger.debug(f"available_packages: {available_packages}")
+        text = f"Выберите пакет"
+
+        packages_labels = [f"{package.get('name')} - {str(package.get('price'))} руб"
+                           for package in available_packages]
+        packages_callbacks = [str(i) for i in range(len(available_packages))]
+        packages_labels.append("Назад")
+        packages_callbacks.append("go_back")
+        await state.update_data(available_packages=available_packages)
+        packages_kb = await create_kb(packages_labels, packages_callbacks)
+        await state.set_state(SelectFilesForm.add_photos)
+        await callback.message.edit_text(text=text, reply_markup=packages_kb)
+    else:
+        if not selected_task_dict:
+            selected_task_dict = [x for x in tasks_list if x.get('id') == int(callback.data)][0]
+        text = (
+            f"Статус: {selected_task_dict.get('status')} \n"
+            f"Выбранные файлы: "
+            f"{str(selected_task_dict.get('files_list')).replace('[]', ' Нет')}"
+        )
+        callback_labels = ["Назад"]
+        callback_data = ["go_back"]
+        await state.update_data(selected_task_dict=selected_task_dict)
+        if (selected_task_dict.get('package').get('photos_number')
+                > len(selected_task_dict.get('files_list'))):
+            callback_labels.append("Добавить фото")
+            callback_data.append("add_photo")
+        kb = await create_kb(callback_labels, callback_data)
+        await state.set_state(SelectFilesForm.add_photos)
+        await callback.message.edit_text(text=text, reply_markup=kb)
 
 
-@form_router.callback_query(SelectFilesForm.process_selected_record)
-async def process_selected_record(callback: CallbackQuery, state: FSMContext):
+@form_router.callback_query(SelectFilesForm.add_photos)
+async def add_photos(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     checks_result = data.get('checks_result')
-    logger.debug(f"selected_package: "
-                 f"{data.get('available_packages')[int(callback.data)]}")
-    selected_package = data.get('available_packages')[int(callback.data)]
-    await state.update_data(
-        selected_package=selected_package)
-    if checks_result.get('status'):
-        await state.set_state(SelectFilesForm.process_digits_set)
-        if checks_result.get('exists'):
-            existing_task = checks_result.get('task')
+    selected_task_dict = data.get('selected_task_dict')
+    if callback.data == "go_back":
+        await state.update_data(selected_task_dict=None, selected_package=None)
+        await state.set_state(SelectFilesForm.show_user_tasks)
+        await show_user_tasks(callback, state)
+        return
+    if not selected_task_dict:
+        selected_package = data.get('available_packages')[int(callback.data)]
+        await state.update_data(
+            selected_package=selected_package)
+        if checks_result.get('status'):
+            await state.set_state(SelectFilesForm.process_digits_set)
+            kb = await create_kb(["Назад"], ["go_back:new_package"])
             await callback.message.edit_text(
-                f"Для этой записи выбрано {len(existing_task.get('files_list'))} фото"
-                f" Введите через пробел цифровые значения "
-                f"из названий {selected_package.get('photos_number') - len(existing_task.get('files_list'))} файлов")
+                f"Выберите фото для обработки из Вашей папки\n"
+                f"введите через пробел цифровые значения "
+                f"из названий до {selected_package.get(
+                    'photos_number')} файлов",
+                reply_markup=kb
+            )
         else:
-            await callback.message.edit_text(
-                f"Введите через пробел цифровые значения из названий {selected_package.get('photos_number')} файлов")
+            await state.update_data(selected_task_dict=None, selected_package=None)
+            logger.warning(f"checks_result message: {checks_result.get('message')}")
+            await callback.message.edit_text(f"Не удалось создать задачу по обработке",
+                                             reply_markup=callback.message.reply_markup)
     else:
-        await callback.message.edit_text(f"{checks_result.get('message')}",
-                                         reply_markup=callback.message.reply_markup)
+        await state.set_state(SelectFilesForm.process_digits_set)
+        kb = await create_kb(["Назад"], ["go_back:package_selected"])
+        await callback.message.edit_text(
+            f"Для Вашей папки выбрано "
+            f"{len(selected_task_dict.get('files_list'))} фото"
+            f" Введите через пробел цифровые значения "
+            f"из названий до {selected_task_dict.get('package').get('photos_number') - 
+                              len(selected_task_dict.get('files_list'))} файлов",
+            reply_markup=kb)
 
 
 @form_router.message(SelectFilesForm.process_digits_set)
@@ -316,3 +392,18 @@ async def process_digits_set(message: Message, state: FSMContext):
 
     except Exception as e:
         logger.error(f"{e}")
+
+
+@form_router.callback_query(SelectFilesForm.process_digits_set)
+async def process_digits_set_callback(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    selected_task_dict = data.get('selected_task_dict')
+    logger.debug(f"process_digits_set_callback")
+    logger.debug(f"selected_task_dict: {selected_task_dict}")
+    if "go_back" in callback.data:
+        if "new_package" in callback.data:
+            await state.update_data(as_new_package=True)
+        await state.update_data(selected_package=None)
+        await state.set_state(SelectFilesForm.process_selected_task)
+        await process_selected_task(callback, state)
+        return
