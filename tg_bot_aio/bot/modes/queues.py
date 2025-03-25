@@ -12,7 +12,8 @@ from ..middleware import ChatIDChecker
 from ..service import studio_names, mode_names
 from ..utils import (run_indexing, check_ready_for_index,
                      change_ownership, change_folder_permissions,
-                     add_to_ai_queue, run_rs_enhance, get_readable_queue, count_files_in_folder, remove_from_ai_queue)
+                     add_to_ai_queue, run_rs_enhance, get_readable_queue, count_files_in_folder, remove_from_ai_queue,
+                     ai_caller_restart)
 
 
 class QueueForm(StatesGroup):
@@ -54,9 +55,8 @@ async def queues_select_screen(message: Message, state: FSMContext):
         if password_match or logged_in:
             await state.update_data(logged_in=True)
             await state.set_state(QueueForm.queue_schedule)
-            queues_kb = await create_kb(list(queues_mapping.keys()),
-                                        list(queues_mapping.values()) *
-                                        len(list(queues_mapping.keys())))
+            queues_kb = await create_kb(list(queues_mapping.keys()).append("Рестарт сервиса"),
+                                        list(queues_mapping.values()).append("service_restart"))
             await message.answer(text=f"выберите очередь", reply_markup=queues_kb)
         else:
             await message.answer("Неправильный пароль", protect_content=True)
@@ -69,6 +69,11 @@ async def process_queue_select(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     selected_queue = data.get('selected_queue')
     queue_name = data.get('queue_name')
+
+    if callback.data == "service_restart":
+        result = await ai_caller_restart()
+        await callback.message.edit_text(f"Результат: {result}",
+                                         reply_markup=callback.message.reply_markup)
 
     if not selected_queue:
         selected_queue = callback.data

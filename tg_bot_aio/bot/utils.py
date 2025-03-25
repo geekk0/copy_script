@@ -260,3 +260,17 @@ async def remove_from_ai_queue(folder_path, action, queue_file):
     except Exception as e:
         logger.error(e)
 
+
+async def ai_caller_restart():
+    command = f"echo {sudo_password} | sudo -S service ai_enhance_caller restart"
+    logger.info(command)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = process.communicate()
+
+    logger.info(output)
+    if process.returncode == 0:
+        return "Сервис перезапущен"
+
+    else:
+        return "Ошибка перезапуска сервиса"
+
