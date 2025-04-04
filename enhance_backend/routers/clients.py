@@ -16,6 +16,7 @@ async def get_client_by_chat_id(client_chat_id: int) -> ClientResponse | None:
         client = await db_manager.get_client_by_chat_id(client_chat_id)
         return client
     except Exception as e:
+        print(f"Error while fetching client: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -25,7 +25,6 @@ DB_NAME = environ.get("DB_NAME", "reflect_backend")
 
 DATABASE_URL = f"postgres://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-print(DATABASE_URL)
 load_dotenv()
 
 TORTOISE_ORM = {

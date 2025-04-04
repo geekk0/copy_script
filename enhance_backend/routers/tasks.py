@@ -11,7 +11,7 @@ from os import environ
 
 from enhance_backend.models import StatusEnum, Client, Package
 from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
-    EnhanceTaskUpdate, EnhanceTaskResponseWithDetails, ClientResponse, PackageResponse
+    EnhanceTaskUpdate, EnhanceTaskResponseWithDetails, ClientResponse
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
 from clients_bot.utils import remove_task_folder
@@ -25,10 +25,10 @@ load_dotenv()
 
 
 @tasks_router.get("")
-async def get_enhance_tasks_by_client(client_id: int)\
+async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
         -> list[EnhanceTaskResponseWithDetails]:
     try:
-        tasks = await db_manager.get_clients_enhance_tasks(client_id)
+        tasks = await db_manager.get_clients_enhance_tasks(client_id, yclients_records_id)
         result = [
             EnhanceTaskResponseWithDetails(
                 id=task.id,
@@ -39,7 +39,8 @@ async def get_enhance_tasks_by_client(client_id: int)\
                 created_at=task.created_at.isoformat(),
                 enhanced_files_count=task.enhanced_files_count,
                 files_list=task.files_list or [],
-                package=PackageResponse.model_validate(task.package, from_attributes=True),
+                yclients_certificate_code=task.yclients_certificate_code,
+                max_photo_amount=task.max_photo_amount,
             )
             for task in tasks
         ]
@@ -48,6 +49,7 @@ async def get_enhance_tasks_by_client(client_id: int)\
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

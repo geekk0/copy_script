@@ -55,8 +55,8 @@ async def queues_select_screen(message: Message, state: FSMContext):
         if password_match or logged_in:
             await state.update_data(logged_in=True)
             await state.set_state(QueueForm.queue_schedule)
-            queues_kb = await create_kb(list(queues_mapping.keys()).append("Рестарт сервиса"),
-                                        list(queues_mapping.values()).append("service_restart"))
+            queues_kb = await create_kb(list(queues_mapping.keys()) + ["Рестарт сервиса"],
+                                        list(queues_mapping.values()) + ["service_restart"])
             await message.answer(text=f"выберите очередь", reply_markup=queues_kb)
         else:
             await message.answer("Неправильный пароль", protect_content=True)

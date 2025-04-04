@@ -3,7 +3,7 @@ import httpx
 from typing import Optional, Dict, Any
 from os import environ
 from dotenv import load_dotenv
-from clients_bot.bot_setup import logger
+# from clients_bot.bot_setup import logger
 
 
 class YClientsAPIManager:
@@ -80,4 +80,20 @@ class YClientsAPIManager:
             return response.json()
         else:
             logger.debug(f"Ошибка {response.status_code}: {response.text}")
+            return None
+
+    async def get_enhance_certs(self, phone: str) -> Optional[Dict[str, Any]]:
+        url = f"{self.BASE_URL}/loyalty/certificates/?company_id={self.company_id}/enhance/certificates"
+        params = {
+            "company_id": self.company_id,
+            "phone": phone
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers, params=params)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Ошибка {response.status_code}: {response.text}")
             return None

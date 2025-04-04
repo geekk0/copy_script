@@ -63,11 +63,15 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в add_client: {e}")
             return False
 
-    async def get_client_tasks(self, client_id: int):
+    async def get_client_tasks(self, client_id: int, yclients_records_id: int):
         method = "GET"
         endpoint = "/tasks"
         try:
-            response = await self.send_request(method, endpoint, params={"client_id": client_id})
+            response = await self.send_request(
+                method, endpoint,
+                params={"client_id": client_id,
+                        "yclients_records_id": yclients_records_id}
+            )
             return response.json()
         except Exception as e:
             logger.error(f"Произошла ошибка в add_client: {e}")

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from enhance_backend.models import Client, Order, EnhanceTask, Package
 from tortoise.exceptions import DoesNotExist
 
-from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse, PackageResponse
+from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse
 
 
 class DatabaseManager:
@@ -92,22 +92,22 @@ class DatabaseManager:
             task_data: EnhanceTaskResponse
     ) -> EnhanceTaskResponse:
         client = await Client.get(chat_id=client_chat_id)
-        package = await Package.get(id=task_data.package_id)
         task = await EnhanceTask.create(
             client=client,
             folder_path=task_data.folder_path,
             yclients_record_id=task_data.yclients_record_id,
             files_list=task_data.files_list,
-            package=package
         )
         return EnhanceTaskResponse.model_validate(task)
 
     @staticmethod
     async def get_clients_enhance_tasks(
-            client_id: int) -> list[EnhanceTask]:
+            client_id: int, yclients_records_id: int) -> list[EnhanceTask]:
         client = await Client.get(id=client_id)
         return await EnhanceTask.filter(
-            client_id=client.id).prefetch_related('client', 'package')
+            client_id=client.id,
+            yclients_record_id=yclients_records_id
+        ).select_related('client')
 
     @staticmethod
     async def update_enhance_task(task_id: int, task_data: EnhanceTaskResponse) -> EnhanceTask:
@@ -129,23 +129,23 @@ class DatabaseManager:
         if task:
             await task.delete()
 
-    @staticmethod
-    async def add_package(package_data: Package) -> Package:
-        package = await Package.create(
-            name=package_data.name,
-            photos_number=package_data.photos_number,
-            price=package_data.price
-        )
-        return package
-
-    @staticmethod
-    async def delete_package(package_id: int):
-        package = await Package.get_or_none(id=package_id)
-        if package:
-            await package.delete()
-
-    @staticmethod
-    async def get_package_by_task_id(task_id: int) -> Package:
-        task = await EnhanceTask.get_or_none(id=task_id)
-        if task:
-            return await task.package
+    # @staticmethod
+    # async def add_package(package_data: PackageResponse) -> Package:
+    #     package = await Package.create(
+    #         name=package_data.name,
+    #         photos_number=package_data.photos_number,
+    #         price=package_data.price
+    #     )
+    #     return package
+    #
+    # @staticmethod
+    # async def delete_package(package_id: int):
+    #     package = await Package.get_or_none(id=package_id)
+    #     if package:
+    #         await package.delete()
+    #
+    # @staticmethod
+    # async def get_package_by_task_id(task_id: int) -> Package:
+    #     task = await EnhanceTask.get_or_none(id=task_id)
+    #     if task:
+    #         return await task.package

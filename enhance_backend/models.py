@@ -29,6 +29,8 @@ class Package(models.Model):
     photos_number = fields.IntField()
     price = fields.IntField()
     published = fields.BooleanField(default=False)
+    yclients_certificate_type_id = fields.IntField()
+    purchase_url = fields.TextField(null=True)
 
     class Meta:
         table = "packages"
@@ -40,6 +42,9 @@ class Order(models.Model):
         'models.Client', related_name='orders', on_delete=fields.CASCADE)
     photo_path = fields.TextField()
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
+    yclients_certificate_type_id = fields.IntField(null=True, default=None)
+    yclients_certificate_code = fields.IntField(null=True, default=None)
+    amount = fields.IntField(null=True, default=None)
     created_at = fields.DatetimeField(auto_now_add=True)
     package = fields.ForeignKeyField(
         'models.Package', related_name='orders', on_delete=fields.CASCADE
@@ -54,14 +59,18 @@ class EnhanceTask(models.Model):
     client = fields.ForeignKeyField(
         'models.Client', related_name='enhance_tasks', on_delete=fields.CASCADE)
     folder_path = fields.TextField()
-    yclients_record_id = fields.BigIntField()
+    yclients_record_id = fields.BigIntField(null=True, default=None)
     status = fields.CharEnumField(StatusEnum, default=StatusEnum.PENDING)
     created_at = fields.DatetimeField(auto_now_add=True)
     enhanced_files_count = fields.IntField(default=0)
     files_list = fields.JSONField(default=list)
-    package = fields.ForeignKeyField(
-        'models.Package', related_name='enhance_tasks', on_delete=fields.CASCADE
-    )
+    yclients_certificate_code = fields.IntField(null=True, default=None)
+    yclients_certificate_type_id = fields.IntField(null=True, default=None)
+    max_photo_amount = fields.IntField(null=True, default=None)
+    price = fields.IntField()
+    # package = fields.ForeignKeyField(
+    #     'models.Package', related_name='enhance_tasks', on_delete=fields.CASCADE
+    # )
 
     class Meta:
         table = "enhancetasks"

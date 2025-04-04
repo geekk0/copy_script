@@ -3,7 +3,7 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from tortoise.contrib.pydantic import pydantic_model_creator
 
-from enhance_backend.models import EnhanceTask, StatusEnum, Package
+from enhance_backend.models import EnhanceTask, StatusEnum, Package, Order
 
 
 class ClientRequest(BaseModel):
@@ -13,7 +13,6 @@ class ClientRequest(BaseModel):
     username: Optional[str] = None
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -35,8 +34,34 @@ EnhanceTaskResponse = pydantic_model_creator(
     exclude=("client", "package")
 )
 
-PackageRequest = pydantic_model_creator(Package, exclude=("id",))
+# PackageRequest = pydantic_model_creator(Package, exclude=("id",))
+
+
+# class PackageRequest(BaseModel):
+#     name: str
+#     photos_number: int
+#     price: int
+#     yclients_certificate_type_id: int
+#     purchase_url: str
+#     published: bool
+
+
+# class PackageResponse(BaseModel):
+#     name: str
+#     photos_number: int
+#     price: int
+#     yclients_certificate_type_id: int
+#     purchase_url: str
+#     published: bool
+
 PackageResponse = pydantic_model_creator(Package)
+
+# OrderRequest = pydantic_model_creator(
+#     Order,
+#     name="OrderRequest",
+#     exclude=("id", "created_at", "updated_at")
+# )
+# OrderResponse = pydantic_model_creator(Order)
 
 
 class EnhanceTaskResponseWithDetails(BaseModel):
@@ -48,10 +73,10 @@ class EnhanceTaskResponseWithDetails(BaseModel):
     created_at: str
     enhanced_files_count: int
     files_list: Optional[list[str]]
-    package: PackageResponse
+    yclients_certificate_code: Optional[int]
+    max_photo_amount: Optional[int]
 
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
