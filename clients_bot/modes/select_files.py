@@ -434,13 +434,13 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
     else:
         await state.set_state(SelectFilesForm.process_digits_set)
         kb = await create_kb(
-            ["Назад"], ["go_back"])
+            ["Назад"], ["go_back:package_selected"])
         await callback.message.edit_text(
             f"Для Вашей папки выбрано "
             f"{len(selected_task_dict.get('files_list'))} фото"
             f" Введите через пробел цифровые значения "
-            f"из названий до {selected_task_dict.get('max_photo_amount') - 
-                              len(selected_task_dict.get('files_list'))} файлов",
+            f"из названий до "
+            f"{selected_task_dict.get('max_photo_amount') - len(selected_task_dict.get('files_list'))} файлов",
             reply_markup=kb)
 
 
