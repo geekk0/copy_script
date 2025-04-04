@@ -222,7 +222,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         free_certs = all_certs
 
     if free_certs:
-        btn_names += [f"{p.get('type').get('title').replace("Обработка ", "")}"
+        btn_names += [f"{p.get('type').get('title').replace('Обработка ', '')}"
                       for p in free_certs]
         btn_values += [str(i) for i in range(0, len(free_certs))]
         await state.update_data(free_certs=free_certs)
