@@ -59,17 +59,18 @@ class EnhanceCaller:
 
     def run(self):
 
-        if not os.path.exists(self.photos_path):
-            self.bound_logger.error(f'Folder {self.photos_path} does not exist')
-            return
-        today_folders = self.get_ready_folders_list()
+        if not self.studio == "Neo":
+            if not os.path.exists(self.photos_path):
+                self.bound_logger.error(f'Folder {self.photos_path} does not exist')
+                return
+            today_folders = self.get_ready_folders_list()
 
-        self.bound_logger.debug(f'studio "{self.studio}": today_folders: {today_folders}')
+            self.bound_logger.debug(f'studio "{self.studio}": today_folders: {today_folders}')
 
-        self.index_ready_folders(today_folders)
+            self.index_ready_folders(today_folders)
 
-        for folder in today_folders:
-            self.add_to_ai_queue(folder)
+            for folder in today_folders:
+                self.add_to_ai_queue(folder)
 
         self.run_ai_enhance_queue()
 
