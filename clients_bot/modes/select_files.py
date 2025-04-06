@@ -507,7 +507,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                     'files_list': list(found_files) or [],
                     "client_chat_id": message.chat.id,
                     "yclients_certificate_code": selected_cert.get('number'),
-                    "price": selected_task_dict.get('balance')
+                    "price": selected_cert.get('balance')
                 }
             )
             logger.debug(f"created task: {new_task}")
