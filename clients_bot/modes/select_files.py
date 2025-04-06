@@ -310,6 +310,7 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     existing_user_tasks = data.get('existing_user_tasks')
     btn_names = []
     btn_values = []
+    logger.debug(f"existing_user_tasks: {existing_user_tasks}")
     if existing_user_tasks:
         btn_names += [f"{str(t.get('max_photo_amount'))} фото" for t in existing_user_tasks]
         btn_values += [str(i) for i in range(0, len(existing_user_tasks))]
@@ -500,15 +501,18 @@ async def process_digits_set(message: Message, state: FSMContext):
                     }
                 )
         else:
+            task_data = {
+                'folder_path': original_photo_path,
+                'yclients_record_id': int(selected_record_dict.get('record_id')),
+                'files_list': list(found_files) or [],
+                "client_chat_id": message.chat.id,
+                "yclients_certificate_code": selected_cert.get('number'),
+                "price": selected_cert.get('balance'),
+                "max_photo_amount": max_photo_amount
+            }
+            logger.debug(f"task_data: {task_data}")
             new_task = await enh_back_api.add_enhance_task(
-                task_data={
-                    'folder_path': original_photo_path,
-                    'yclients_record_id': int(selected_record_dict.get('record_id')),
-                    'files_list': list(found_files) or [],
-                    "client_chat_id": message.chat.id,
-                    "yclients_certificate_code": selected_cert.get('number'),
-                    "price": selected_cert.get('balance')
-                }
+                task_data=task_data
             )
             logger.debug(f"created task: {new_task}")
 

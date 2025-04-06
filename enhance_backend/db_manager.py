@@ -92,12 +92,15 @@ class DatabaseManager:
             task_data: EnhanceTaskResponse
     ) -> EnhanceTaskResponse:
         client = await Client.get(chat_id=client_chat_id)
+        print(f"task_data: {task_data}")
         task = await EnhanceTask.create(
             client=client,
             folder_path=task_data.folder_path,
             yclients_record_id=task_data.yclients_record_id,
             files_list=task_data.files_list,
-            price=task_data.price
+            price=task_data.price,
+            max_photo_amount=task_data.max_photo_amount,
+            yclients_certificate_code=task_data.yclients_certificate_code
         )
         return EnhanceTaskResponse.model_validate(task)
 
