@@ -464,77 +464,73 @@ async def process_digits_set(message: Message, state: FSMContext):
     if len(list(message.text.split(" "))) > max_photo_amount:
         await message.answer("Количество фото превышено")
 
-    try:
-        for file in os.scandir(original_photo_path):
-            if file.is_file():
-                try:
-                    file_number_str = file.name.split('-')[1].split('.')[0]
-                    if file_number_str in photos_digits_set:
-                        found_files.add(file.name)
-                except (IndexError, ValueError):
-                    continue
+    for file in os.scandir(original_photo_path):
+        if file.is_file():
+            try:
+                file_number_str = file.name.split('-')[1].split('.')[0]
+                if file_number_str in photos_digits_set:
+                    found_files.add(file.name)
+            except (IndexError, ValueError):
+                continue
 
-        missing_numbers = (photos_digits_set -
-                           {file.name.split('-')[1].split('.')[0]
-                            for file in os.scandir(original_photo_path) if file.is_file()})
-        logger.debug(f"missing numbers: {missing_numbers}")
+    missing_numbers = (photos_digits_set -
+                       {file.name.split('-')[1].split('.')[0]
+                        for file in os.scandir(original_photo_path) if file.is_file()})
+    logger.debug(f"missing numbers: {missing_numbers}")
 
-        if missing_numbers:
-            await message.answer(
-                f"Эти номера не соответствуют "
-                f"названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
-        else:
-            if checks_result.get('exists'):
-                existing_task = checks_result.get('task')
+    if missing_numbers:
+        await message.answer(
+            f"Эти номера не соответствуют "
+            f"названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
+    else:
+        if checks_result.get('exists'):
+            existing_task = checks_result.get('task')
 
-                if (existing_task.get('enhanced_files_count') +
-                        len(found_files) > max_photo_amount):
-                    await message.answer("Общее количество выбранных фото превышено")
-                else:
-                    existing_task['files_list'] = (
-                            (existing_task.get('files_list') or []) + list(found_files))
-                    await enh_back_api.update_enhance_task(
-                        task_id=existing_task.get('id'),
-                        task_data={
-                            'files_list': existing_task.get('files_list'),
-                            'status': "processing"
-                        }
-                    )
+            if (existing_task.get('enhanced_files_count') +
+                    len(found_files) > max_photo_amount):
+                await message.answer("Общее количество выбранных фото превышено")
             else:
-                new_task = await enh_back_api.add_enhance_task(
+                existing_task['files_list'] = (
+                        (existing_task.get('files_list') or []) + list(found_files))
+                await enh_back_api.update_enhance_task(
+                    task_id=existing_task.get('id'),
                     task_data={
-                        'folder_path': original_photo_path,
-                        'yclients_record_id': int(selected_record_dict.get('record_id')),
-                        'files_list': list(found_files) or [],
-                        "client_chat_id": message.chat.id,
-                        "yclients_certificate_code": selected_cert.get('number'),
-                        "price": selected_task_dict.get('balance')
+                        'files_list': existing_task.get('files_list'),
+                        'status': "processing"
                     }
                 )
-                logger.debug(f"created task: {new_task}")
-
-            try:
-                await prepare_enhance_task(original_photo_path, list(found_files))
-            except Exception as e:
-                logger.error(f"error prepare_enhance_task: {e}")
-            try:
-                await add_to_ai_queue(
-                    original_photo_path + "_task",
-                    studios_mapping[selected_record_dict.get('studio')],
-                    True
-                )
-                await enh_back_api.change_task_status(original_photo_path, "queued")
-            except Exception as e:
-                logger.error(f"error add_to_ai_queue: {e}")
-
-            await message.answer(
-                f"Выбраны для обработки:\n"
-                f"{' '.join(map(str, found_files))}\n"
-                f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+        else:
+            new_task = await enh_back_api.add_enhance_task(
+                task_data={
+                    'folder_path': original_photo_path,
+                    'yclients_record_id': int(selected_record_dict.get('record_id')),
+                    'files_list': list(found_files) or [],
+                    "client_chat_id": message.chat.id,
+                    "yclients_certificate_code": selected_cert.get('number'),
+                    "price": selected_task_dict.get('balance')
+                }
             )
+            logger.debug(f"created task: {new_task}")
 
-    except Exception as e:
-        logger.error(f"{e}")
+        try:
+            await prepare_enhance_task(original_photo_path, list(found_files))
+        except Exception as e:
+            logger.error(f"error prepare_enhance_task: {e}")
+        try:
+            await add_to_ai_queue(
+                original_photo_path + "_task",
+                studios_mapping[selected_record_dict.get('studio')],
+                True
+            )
+            await enh_back_api.change_task_status(original_photo_path, "queued")
+        except Exception as e:
+            logger.error(f"error add_to_ai_queue: {e}")
+
+        await message.answer(
+            f"Выбраны для обработки:\n"
+            f"{' '.join(map(str, found_files))}\n"
+            f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+        )
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
