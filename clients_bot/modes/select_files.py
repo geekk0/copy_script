@@ -453,7 +453,7 @@ async def process_digits_set(message: Message, state: FSMContext):
     selected_record_dict = data.get('selected_record_dict')
     selected_task_dict = data.get('selected_task_dict')
     selected_cert = data.get('selected_cert')
-    max_photo_amount = (data.get('max_photo_amount')
+    max_photo_amount = int(data.get('max_photo_amount')
                         or selected_task_dict.get('max_photo_amount'))
 
     photos_digits_set = set(message.text.split(" "))
