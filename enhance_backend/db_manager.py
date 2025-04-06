@@ -97,6 +97,7 @@ class DatabaseManager:
             folder_path=task_data.folder_path,
             yclients_record_id=task_data.yclients_record_id,
             files_list=task_data.files_list,
+            price=task_data.price
         )
         return EnhanceTaskResponse.model_validate(task)
 

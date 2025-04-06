@@ -25,7 +25,10 @@ class EnhanceTaskRequest(BaseModel):
     folder_path: str
     yclients_record_id: int
     files_list: list[str]
-    package_id: int
+    yclients_certificate_code: int | None = None
+    yclients_certificate_type_id: int | None = None
+    max_photo_amount: int | None = None
+    price: int | None = None
 
 
 EnhanceTaskResponse = pydantic_model_creator(
