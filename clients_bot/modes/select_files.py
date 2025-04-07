@@ -149,6 +149,9 @@ async def create_user(message: Message, state: FSMContext):
             logger.debug(f'yclients_user_id: {yclients_user_id}')
             await state.update_data(yclients_user_id=yclients_user_id)
 
+            if phone.startswith('8'):
+                phone.replace('8', '7', 1)
+
             new_client = await enh_back_api.add_client(
                 {
                     "phone_number": phone,

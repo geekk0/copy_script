@@ -49,7 +49,6 @@ class YClientsAPIManager:
             data = response.json()
             return data
         else:
-            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
 
     async def get_client_records_by_client_id(self, client_id: str) -> Optional[Dict[str, Any]]:
@@ -64,7 +63,6 @@ class YClientsAPIManager:
         if response.status_code == 200:
             return data
         else:
-            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
 
     async def create_client(self, client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -79,7 +77,6 @@ class YClientsAPIManager:
         if response.status_code in [200, 201]:
             return response.json()
         else:
-            logger.debug(f"Ошибка {response.status_code}: {response.text}")
             return None
 
     async def get_enhance_certs(self, phone: str) -> Optional[Dict[str, Any]]:
