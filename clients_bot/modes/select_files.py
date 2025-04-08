@@ -237,7 +237,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         btn_values += [str(i) for i in range(0, len(free_certs))]
         await state.update_data(free_certs=free_certs)
 
-    btn_names.append("Новый пакет")
+    btn_names.append("Новый сертификат")
     btn_values.append("new_package")
 
     if existing_user_tasks:
@@ -257,7 +257,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.process_certs_screen)
     try:
         await callback.message.edit_text(
-            text="Выберите имеющийся или новый пакет:", reply_markup=select_package_kb)
+            text="Выберите имеющийся или новый сертификат:", reply_markup=select_package_kb)
     except:
         await callback.message.delete()
         await state.set_state(SelectFilesForm.get_user_records)

@@ -89,7 +89,15 @@ class YClientsAPIManager:
         logger.debug(f"get certs url: {url}")
 
         async with httpx.AsyncClient() as client:
+
             response = await client.get(url, headers=self.headers, params=params)
+
+            req = response.request
+
+            logger.debug(f"Request method: {req.method}")
+            logger.debug(f"Request URL: {req.url}")
+            logger.debug(f"Request headers: {req.headers}")
+            logger.debug(f"Request content: {req.content.decode(errors='ignore')}")
 
         if response.status_code == 200:
             data = response.json()
