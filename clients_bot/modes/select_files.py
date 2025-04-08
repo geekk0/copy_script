@@ -146,6 +146,8 @@ async def create_user(message: Message, state: FSMContext):
         phone = phone.replace('8', '7', 1)
     if phone.startswith('9'):
         phone = '7' + phone
+    if phone.startswith('+7'):
+        phone = phone.replace("+", "")
     logger.debug(f"phone after: {phone}")
 
     user_data = await api_manager.get_client_info_by_phone(phone)
