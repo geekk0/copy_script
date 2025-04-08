@@ -141,6 +141,13 @@ async def compress_image(image_name, image_path):
 @form_router.message(SelectFilesForm.create_user)
 async def create_user(message: Message, state: FSMContext):
     phone = message.text
+    logger.debug(f"phone before: {phone}")
+    if phone.startswith('8'):
+        phone = phone.replace('8', '7', 1)
+    if phone.startswith('9'):
+        phone = '7' + phone
+    logger.debug(f"phone after: {phone}")
+
     user_data = await api_manager.get_client_info_by_phone(phone)
     logger.debug(f"user data: {user_data}")
     if len(user_data.get('data')) > 0:
@@ -148,10 +155,6 @@ async def create_user(message: Message, state: FSMContext):
             yclients_user_id = user_data.get('data')[0].get('id')
             logger.debug(f'yclients_user_id: {yclients_user_id}')
             await state.update_data(yclients_user_id=yclients_user_id)
-
-            if phone.startswith('8'):
-                phone.replace('8', '7', 1)
-
             new_client = await enh_back_api.add_client(
                 {
                     "phone_number": phone,
@@ -163,6 +166,8 @@ async def create_user(message: Message, state: FSMContext):
             await state.update_data(client_id=new_client.get('id'))
             await state.set_state(SelectFilesForm.get_user_records)
             await get_records(message, state)
+    else:
+        await message.answer(f"Клиент с номером телефона: {phone} не найден")
 
 
 @form_router.message(SelectFilesForm.get_user_records)
@@ -211,7 +216,9 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
 
     user = await enh_back_api.get_user_by_chat_id(callback.message.chat.id)
     all_certs = (await api_manager.get_enhance_certs(user.get('phone_number'))).get('data')
-    logger.debug(f"all_certs: {all_certs}")
+    enhance_certs = [cert for cert in all_certs
+                     if cert.get('type').get('title').startswith('Обработка')]
+    logger.debug(f"enhance_certs: {enhance_certs}")
 
     btn_names = []
     btn_values = []
@@ -219,10 +226,10 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     if existing_user_tasks:
         existing_cert_numbers = [str(task["yclients_certificate_code"])
                                  for task in existing_user_tasks]
-        free_certs = [cert for cert in all_certs
+        free_certs = [cert for cert in enhance_certs
                       if cert.get('number') not in existing_cert_numbers]
     else:
-        free_certs = all_certs
+        free_certs = enhance_certs
 
     if free_certs:
         btn_names += [f"{p.get('type').get('title').replace('Обработка ', '')}"
@@ -248,8 +255,13 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         selected_record_dict=selected_record_dict,
     )
     await state.set_state(SelectFilesForm.process_certs_screen)
-    await callback.message.edit_text(
-        text="Выберите имеющийся или новый пакет:", reply_markup=select_package_kb)
+    try:
+        await callback.message.edit_text(
+            text="Выберите имеющийся или новый пакет:", reply_markup=select_package_kb)
+    except:
+        await callback.message.delete()
+        await state.set_state(SelectFilesForm.get_user_records)
+        await get_records(message=callback.message, state=state)
 
 
 @form_router.callback_query(SelectFilesForm.process_certs_screen)
@@ -297,7 +309,6 @@ async def process_certs_screen(callback: CallbackQuery, state: FSMContext):
         await state.set_state(SelectFilesForm.new_task_screen)
         await state.update_data(selected_cert=selected_cert)
         await new_task_screen(callback, state)
-
 
 
 @form_router.callback_query(SelectFilesForm.show_user_tasks)
