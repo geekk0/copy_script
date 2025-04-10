@@ -35,6 +35,7 @@ class SelectFilesForm(StatesGroup):
     new_task_screen = State()
     add_photos = State()
     process_digits_set = State()
+    process_all_files = State()
 
 
 studios_mapping = {
@@ -109,8 +110,8 @@ async def check_record_before_create_task(record: dict, folder_path, client_id):
                               if task.get('yclients_record_id')
                               == record.get('record_id')]
     if len(existing_session_tasks) > 0:
+        # TODO исправить взятый для проверки existing_task, он не обязательно первый
         existing_task = existing_session_tasks[0]
-        package = await enh_back_api.get_package_by_task_id(existing_task.get('id'))
         logger.debug(f"existing task response: {existing_task}")
         if (existing_task.get('enhanced_files_count') +
                 len(existing_task.get('files_list')) < existing_task.get('max_photo_amount')):
@@ -122,6 +123,12 @@ async def check_record_before_create_task(record: dict, folder_path, client_id):
             result['status'] = False
             result['message'] = f"Фото уже выбраны для этого сеанса"
     return result
+
+
+async def put_all_photos_to_files_list(folder_path):
+    files = [f for f in os.listdir(folder_path)
+             if os.path.isfile(os.path.join(folder_path, f))]
+    return files
 
 
 async def compress_image(image_name, image_path):
@@ -239,7 +246,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         btn_values += [str(i) for i in range(0, len(free_certs))]
         await state.update_data(free_certs=free_certs)
 
-    btn_names.append("Новый сертификат")
+    btn_names.append("Купить")
     btn_values.append("new_package")
 
     if existing_user_tasks:
@@ -430,15 +437,23 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             await state.set_state(SelectFilesForm.process_digits_set)
             kb = await create_kb(["Назад"], ["go_back"])
             logger.debug(f"selected_cert: {selected_cert}")
-            max_photo_amount = (selected_cert.get('type').get('title')
-                                .replace("Обработка ", "").replace(" фото", ""))
+            try:
+                max_photo_amount = str(int((selected_cert.get('type').get('title')
+                                            .replace("Обработка ", "").replace(" фото", ""))))
+            except Exception:
+                max_photo_amount = None
             await state.update_data(max_photo_amount=max_photo_amount)
-            await callback.message.edit_text(
-                f"Выберите фото для обработки из Вашей папки\n"
-                f"введите через пробел цифровые значения "
-                f"из названий до {max_photo_amount} файлов",
-                reply_markup=kb
-            )
+            if max_photo_amount:
+                await callback.message.edit_text(
+                    f"Выберите фото для обработки из Вашей папки\n"
+                    f"введите через пробел цифровые значения "
+                    f"из названий до {max_photo_amount} файлов",
+                    reply_markup=kb
+                )
+            else:
+                await state.set_state(SelectFilesForm.process_all_files)
+                await process_all_files_callback(callback, state)
+                return
         else:
             await state.update_data(
                 selected_task_dict=None,
@@ -551,6 +566,51 @@ async def process_digits_set(message: Message, state: FSMContext):
             f"{' '.join(map(str, found_files))}\n"
             f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
         )
+
+
+@form_router.callback_query(SelectFilesForm.process_all_files)
+async def process_all_files_callback(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    logger.debug(f"process_all_files_callback")
+    logger.debug(f"callback data: {callback.data}")
+    original_photo_path = data.get('original_photo_path')
+    selected_record_dict = data.get('selected_record_dict')
+    selected_cert = data.get('selected_cert')
+
+    files_list = await put_all_photos_to_files_list(original_photo_path)
+
+    task_data = {
+        'folder_path': original_photo_path,
+        'yclients_record_id': int(selected_record_dict.get('record_id')),
+        'files_list': files_list,
+        "client_chat_id": callback.message.chat.id,
+        "yclients_certificate_code": selected_cert.get('number'),
+        "price": selected_cert.get('balance'),
+        "max_photo_amount": None
+    }
+    logger.debug(f"task_data: {task_data}")
+    new_task = await enh_back_api.add_enhance_task(
+        task_data=task_data
+    )
+    logger.debug(f"created task: {new_task}")
+
+    try:
+        await prepare_enhance_task(original_photo_path, files_list)
+    except Exception as e:
+        logger.error(f"error prepare_enhance_task: {e}")
+    try:
+        await add_to_ai_queue(
+            original_photo_path + "_task",
+            studios_mapping[selected_record_dict.get('studio')],
+            True
+        )
+        await enh_back_api.change_task_status(original_photo_path, "queued")
+    except Exception as e:
+        logger.error(f"error add_to_ai_queue: {e}")
+
+    await callback.message.answer(
+        f"Все фото из папки добавлены в очередь \n"
+        f"мы сообщим Вам как только они обработаются")
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
