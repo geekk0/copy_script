@@ -59,7 +59,7 @@ class EnhanceCaller:
 
     def run(self):
 
-        if not self.studio == "Neo":
+        if "Neo" not in self.studio:
             if not os.path.exists(self.photos_path):
                 self.bound_logger.error(f'Folder {self.photos_path} does not exist')
                 return
