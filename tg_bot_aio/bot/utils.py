@@ -65,6 +65,7 @@ async def get_studio_config_file(studio):
         'Reflect KZ': 'kz_config.ini',
         'test_studio': 'test_studio_config.ini',
         'Neo': 'neo_config.ini',
+        'Neo2': 'neo2_config.ini',
         'Милан': 'milan_config.ini'
     }
 

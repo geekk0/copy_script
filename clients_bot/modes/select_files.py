@@ -542,7 +542,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                     task_id=existing_task.get('id'),
                     task_data={
                         'files_list': existing_task.get('files_list'),
-                        'status': StatusEnum.QUEUED
+                        'status': StatusEnum.QUEUED.value
                     }
                 )
         else:
@@ -554,7 +554,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                 "yclients_certificate_code": selected_cert.get('number'),
                 "price": selected_cert.get('balance'),
                 "max_photo_amount": max_photo_amount,
-                "status": StatusEnum.QUEUED
+                "status": StatusEnum.QUEUED.value
             }
             logger.debug(f"task_data: {task_data}")
             new_task = await enh_back_api.add_enhance_task(
@@ -572,7 +572,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                 studios_mapping[selected_record_dict.get('studio')],
                 True
             )
-            await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED)
+            await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
         except Exception as e:
             logger.error(f"error add_to_ai_queue: {e}")
 
@@ -607,7 +607,7 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
         "yclients_certificate_code": selected_cert.get('number'),
         "price": selected_cert.get('balance'),
         "max_photo_amount": None,
-        "status": StatusEnum.QUEUED
+        "status": StatusEnum.QUEUED.value
     }
     logger.debug(f"task_data: {task_data}")
     new_task = await enh_back_api.add_enhance_task(
@@ -625,7 +625,7 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
             studios_mapping[selected_record_dict.get('studio')],
             True
         )
-        await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED)
+        await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
     except Exception as e:
         logger.error(f"error add_to_ai_queue: {e}")
 
