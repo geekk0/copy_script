@@ -15,7 +15,7 @@ from clients_bot.keyboards import create_kb
 from clients_bot.api_manager import YClientsAPIManager
 from clients_bot.utils import prepare_enhance_task, add_to_ai_queue, remove_task_folder
 from clients_bot.enhance_backend_api import EnhanceBackendAPI
-
+from enhance_backend.models import StatusEnum
 
 load_dotenv()
 YOOKASSA_PROVIDER_TOKEN = os.getenv("YOOKASSA_PROVIDER_TOKEN")
@@ -39,7 +39,7 @@ class SelectFilesForm(StatesGroup):
 
 
 studios_mapping = {
-    "НЕО": "Neo", "Силуэт": "Силуэт", "Портрет": "Портрет",
+    "НЕО": "Neo", "Силуэт": "Силуэт", "Портрет": "Портрет(ЗАЛ)",
     "Отражение": "Отражение"
 }
 
@@ -335,8 +335,13 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     btn_values = []
     logger.debug(f"existing_user_tasks: {existing_user_tasks}")
     if existing_user_tasks:
-        btn_names += [f"{str(t.get('max_photo_amount'))} фото" for t in existing_user_tasks]
-        btn_values += [str(i) for i in range(0, len(existing_user_tasks))]
+        for i, task in enumerate(existing_user_tasks):
+            max_photos = task.get('max_photo_amount')
+            if max_photos:
+                btn_names.append(f"{max_photos} фото")
+            else:
+                btn_names.append("Все фото")
+            btn_values.append(str(i))
 
     btn_names.append("Назад")
     btn_values.append("go_back")
@@ -358,29 +363,38 @@ async def show_selected_task(callback: CallbackQuery, state: FSMContext):
         await state.set_state(SelectFilesForm.show_user_certs)
         await show_user_certs(callback, state)
         return
-    selected_task_dict = data.get('existing_user_tasks')[int(callback.data)]
+    try:
+        selected_task_dict = data.get('existing_user_tasks')[int(callback.data)]
+        callback_labels = []
+        callback_data = []
+        await state.update_data(selected_task_dict=selected_task_dict)
+        if selected_task_dict.get('max_photo_amount'):
+            if (selected_task_dict.get('max_photo_amount')
+                    > len(selected_task_dict.get('files_list'))):
+                callback_labels.append("Добавить фото")
+                callback_data.append("add_photo")
+            text = (
+                f"Статус: {selected_task_dict.get('status')} \n"
+                f"Выбранные файлы: "
+                f"{str(selected_task_dict.get('files_list')).replace('[]', ' Нет')}"
+            )
+        else:
+            text = (
+                f"Статус: {selected_task_dict.get('status')} \n"
+                f"Выбрано файлов: "
+                f"{str(len(selected_task_dict.get('files_list')))}"
+            )
+        callback_labels.append("Назад")
+        callback_data.append("go_back")
+        kb = await create_kb(callback_labels, callback_data)
+        await state.set_state(SelectFilesForm.add_photos)
+        await callback.message.edit_text(text=text, reply_markup=kb)
 
-    text = (
-        f"Статус: {selected_task_dict.get('status')} \n"
-        f"Выбранные файлы: "
-        f"{str(selected_task_dict.get('files_list')).replace('[]', ' Нет')}"
-    )
-    callback_labels = []
-    callback_data = []
-    await state.update_data(selected_task_dict=selected_task_dict)
-    if (selected_task_dict.get('max_photo_amount')
-            > len(selected_task_dict.get('files_list'))):
-        callback_labels.append("Добавить фото")
-        callback_data.append("add_photo")
-    callback_labels.append("Назад")
-    callback_data.append("go_back")
-    kb = await create_kb(callback_labels, callback_data)
-    await state.set_state(SelectFilesForm.add_photos)
-    await callback.message.edit_text(text=text, reply_markup=kb)
-
-    await state.update_data(selected_task_dict=selected_task_dict)
-    await state.set_state(SelectFilesForm.process_selected_task)
-    await process_selected_task(callback, state)
+        await state.update_data(selected_task_dict=selected_task_dict)
+        await state.set_state(SelectFilesForm.process_selected_task)
+        await process_selected_task(callback, state)
+    except Exception as e:
+        logger.error(f"show_selected_task ERROR: {e}")
 
 
 @form_router.callback_query(SelectFilesForm.process_selected_task)
@@ -528,7 +542,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                     task_id=existing_task.get('id'),
                     task_data={
                         'files_list': existing_task.get('files_list'),
-                        'status': "processing"
+                        'status': StatusEnum.QUEUED
                     }
                 )
         else:
@@ -539,7 +553,8 @@ async def process_digits_set(message: Message, state: FSMContext):
                 "client_chat_id": message.chat.id,
                 "yclients_certificate_code": selected_cert.get('number'),
                 "price": selected_cert.get('balance'),
-                "max_photo_amount": max_photo_amount
+                "max_photo_amount": max_photo_amount,
+                "status": StatusEnum.QUEUED
             }
             logger.debug(f"task_data: {task_data}")
             new_task = await enh_back_api.add_enhance_task(
@@ -557,7 +572,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                 studios_mapping[selected_record_dict.get('studio')],
                 True
             )
-            await enh_back_api.change_task_status(original_photo_path, "queued")
+            await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED)
         except Exception as e:
             logger.error(f"error add_to_ai_queue: {e}")
 
@@ -571,13 +586,18 @@ async def process_digits_set(message: Message, state: FSMContext):
 @form_router.callback_query(SelectFilesForm.process_all_files)
 async def process_all_files_callback(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    logger.debug(f"process_all_files_callback")
+    logger.debug(f"process_all_files_callback 1")
     logger.debug(f"callback data: {callback.data}")
     original_photo_path = data.get('original_photo_path')
     selected_record_dict = data.get('selected_record_dict')
     selected_cert = data.get('selected_cert')
 
-    files_list = await put_all_photos_to_files_list(original_photo_path)
+    try:
+        files_list = await put_all_photos_to_files_list(original_photo_path)
+    except Exception as e:
+        logger.error(f"files_list error: {e}")
+
+    logger.debug(f"files_list: {str(len(files_list))}")
 
     task_data = {
         'folder_path': original_photo_path,
@@ -586,7 +606,8 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
         "client_chat_id": callback.message.chat.id,
         "yclients_certificate_code": selected_cert.get('number'),
         "price": selected_cert.get('balance'),
-        "max_photo_amount": None
+        "max_photo_amount": None,
+        "status": StatusEnum.QUEUED
     }
     logger.debug(f"task_data: {task_data}")
     new_task = await enh_back_api.add_enhance_task(
@@ -604,7 +625,7 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
             studios_mapping[selected_record_dict.get('studio')],
             True
         )
-        await enh_back_api.change_task_status(original_photo_path, "queued")
+        await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED)
     except Exception as e:
         logger.error(f"error add_to_ai_queue: {e}")
 

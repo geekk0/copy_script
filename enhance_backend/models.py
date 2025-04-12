@@ -4,11 +4,11 @@ from pydantic import BaseModel
 
 
 class StatusEnum(str, Enum):
-    PENDING = "pending"
-    QUEUED = "queued"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "Задача создана"
+    QUEUED = "Обработка добавлена в очередь"
+    PROCESSING = "Идет обработка"
+    COMPLETED = "Обработка завершена"
+    FAILED = "Ошибка обработки"
 
 
 class Client(models.Model):
