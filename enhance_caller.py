@@ -33,6 +33,7 @@ config_file_mapping = {
                 'Отражение': 'reflect_config.ini',
                 'Reflect KZ': 'kz_config.ini',
                 'Neo': 'neo_config.ini',
+                'Neo2': 'neo2_config.ini',
                 'Портрет(ЗАЛ)': 'portrait_config.ini',
                 'Милан': 'milan_config.ini'
             }
@@ -109,27 +110,24 @@ class EnhanceCaller:
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
         self.bound_logger.debug(f'call for route: {enhance_folder_url}')
 
-        try:
-            response = requests.post(enhance_folder_url, json=data)
-
-            if response.status_code != 200:
-                if 'already exists' not in response.json().get('error_message'):
-                    self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
-
-            elif response.json().get('error'):
+        response = requests.post(enhance_folder_url, json=data)
+        self.bound_logger.error(f'response.json() {response.json()}')
+        if response.status_code != 200:
+            if 'already exists' not in response.json().get('error_message'):
                 self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
 
-            else:
-                self.bound_logger.debug(f"response data: {response.json()}")
-                result_folder_name = response.json().get('folder_name')
-                self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
-                if "_task" in result_folder_name:
-                    self.remove_task_folder(folder)
-                    send_folder_status_to_backend(folder, "completed", completed=True)
-                self.remove_from_processed_folders(folder)
-                return result_folder_name
-        except Exception as e:
-            self.bound_logger.error(f'studio "{self.studio}" send request error: {e}')
+        elif response.json().get('error'):
+            self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
+
+        else:
+            self.bound_logger.debug(f"response data: {response.json()}")
+            result_folder_name = response.json().get('folder_name')
+            self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
+            if "_task" in result_folder_name:
+                self.remove_task_folder(folder)
+                send_folder_status_to_backend(folder, "completed", completed=True)
+            self.remove_from_processed_folders(folder)
+            return result_folder_name
 
     def get_folder_action(self, folder):
 
