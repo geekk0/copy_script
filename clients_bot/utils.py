@@ -31,9 +31,16 @@ async def clear_photo_folder(folder_path):
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 
-async def prepare_enhance_task(folder: str, files: list):
+async def prepare_enhance_task(
+        folder: str,
+        files: list,
+        cert_code: int | None = None,
+):
+    if cert_code:
+        task_folder = f'{folder}_task_{str(cert_code)}'
+    else:
+        task_folder = f'{folder}_task'
     logger.debug(f"folder: {folder}, files: {files}")
-    task_folder = folder + '_task'
     if not os.path.exists(task_folder):
         os.mkdir(task_folder)
     for file in files:

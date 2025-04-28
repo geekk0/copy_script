@@ -103,8 +103,11 @@ class EnhanceCaller:
         }
 
         if "_task" in data["hour"]:
-            data["hour"] = data["hour"].replace("_task", "")
+            client_cert_code = data["hour"].split("_task_")[1]
+            data["hour"] = data["hour"].split("_task")[0]
             data["task"] = True
+            if client_cert_code:
+                data['cert_code'] = client_cert_code
             send_folder_status_to_backend(folder, "processing")
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')

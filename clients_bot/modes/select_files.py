@@ -94,34 +94,50 @@ async def get_record_folder(record: dict) -> str:
         return "Invalid date format"
 
 
-async def check_record_before_create_task(record: dict, folder_path, client_id):
+async def check_record_before_create_task(
+        folder_path: str,
+        selected_task_dict: dict | None = None,
+        selected_cert: dict | None = None,
+) -> dict:
     result = {'status': True, 'message': None, 'exists': False}
 
-    # if not os.path.exists(folder_path):
-    #     result = {'status': False,
-    #               'message': f'Папка \n"{folder_path}"\n не найдена на сервере', 'exists': False}
-    #     return result
+    if not os.path.exists(folder_path):
+        result = {'status': False,
+                  'message': f'Папка \n"{folder_path}"\n не найдена на сервере', 'exists': False}
+        return result
 
-    existing_tasks = await enh_back_api.get_client_tasks(client_id, record.get('record_id'))
+    if selected_cert:
+        result = {
+            'status': True, 'message': None,
+            'exists': False
+        }
+        return result
 
-    logger.debug(f"existing_tasks: {existing_tasks}")
+    logger.debug(f'selected_cert: {selected_cert}')
+    logger.debug(f'selected_task_dict: {selected_task_dict}')
+    logger.debug(f'selected_task_dict max_photo_amount: {selected_task_dict.get("max_photo_amount")}')
 
-    existing_session_tasks = [task for task in existing_tasks
-                              if task.get('yclients_record_id')
-                              == record.get('record_id')]
-    if len(existing_session_tasks) > 0:
-        # TODO исправить взятый для проверки existing_task, он не обязательно первый
-        existing_task = existing_session_tasks[0]
-        logger.debug(f"existing task response: {existing_task}")
-        if (existing_task.get('enhanced_files_count') +
-                len(existing_task.get('files_list')) < existing_task.get('max_photo_amount')):
-            result = {
-                'status': True, 'message': None,
-                'exists': True, 'task': existing_task
-            }
+    max_photo_amount = selected_task_dict.get('max_photo_amount')
+
+    try:
+        logger.debug(f"enhanced files count: {selected_task_dict.get('enhanced_files_count')}")
+        logger.debug(f"len existing task files_list: {len(selected_task_dict.get('files_list'))}")
+        logger.debug(f"max_photo_amount: {max_photo_amount}")
+        if max_photo_amount:
+            if (selected_task_dict.get('enhanced_files_count') +
+                    len(selected_task_dict.get('files_list')) < int(max_photo_amount)):
+                result = {
+                    'status': True, 'message': None,
+                    'exists': True, 'task': selected_task_dict
+                }
+            else:
+                result['status'] = False
+                result['message'] = f"Фото уже выбраны для этого сеанса"
         else:
-            result['status'] = False
-            result['message'] = f"Фото уже выбраны для этого сеанса"
+            logger.debug(f"no max_photo_amount")
+    except Exception as e:
+        logger.error(e)
+
     return result
 
 
@@ -220,7 +236,6 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     tasks_for_current_record = [
         task for task in existing_user_tasks
         if task.get("yclients_record_id") == selected_record_dict.get("record_id")]
-    logger.debug(f"existing_user_tasks: {existing_user_tasks}")
     logger.debug(f"tasks_for_current_record: {tasks_for_current_record}")
 
     user = await enh_back_api.get_user_by_chat_id(callback.message.chat.id)
@@ -333,7 +348,6 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     existing_user_tasks = data.get('existing_user_tasks')
     btn_names = []
     btn_values = []
-    logger.debug(f"existing_user_tasks: {existing_user_tasks}")
     if existing_user_tasks:
         for i, task in enumerate(existing_user_tasks):
             max_photos = task.get('max_photo_amount')
@@ -365,6 +379,7 @@ async def show_selected_task(callback: CallbackQuery, state: FSMContext):
         return
     try:
         selected_task_dict = data.get('existing_user_tasks')[int(callback.data)]
+        logger.debug(f"selected_task_dict: {selected_task_dict}")
         callback_labels = []
         callback_data = []
         await state.update_data(selected_task_dict=selected_task_dict)
@@ -431,21 +446,33 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
     selected_task_dict = data.get('selected_task_dict')
     selected_record_dict = data.get('selected_record_dict')
     selected_cert = data.get('selected_cert')
-    client_id = data.get('client_id')
     if callback.data == "go_back":
         await state.update_data(selected_task_dict=None, selected_package=None)
         await state.set_state(SelectFilesForm.show_user_tasks)
         await show_user_tasks(callback, state)
         return
+
+    original_photo_path = await get_record_folder(selected_record_dict)
+
+    logger.debug(f'original_photo_path: {original_photo_path}')
+    logger.debug(f'selected_record_dict: {selected_record_dict}')
+    logger.debug(f'add photos selected_task_dict: {selected_task_dict}')
+
+    checks_result = await check_record_before_create_task(
+        original_photo_path,
+        selected_task_dict,
+        selected_cert,
+    )
+
+    await state.update_data(
+        original_photo_path=original_photo_path,
+        checks_result=checks_result,
+    )
+
+    logger.debug(f'checks_result: {checks_result}')
+
     if not selected_task_dict:
-        original_photo_path = await get_record_folder(selected_record_dict)
-        checks_result = await check_record_before_create_task(
-            selected_record_dict, original_photo_path, client_id)
-        await state.update_data(
-            original_photo_path=original_photo_path,
-            checks_result=checks_result,
-        )
-        checks_result = {'status': True}
+        logger.debug("создаем новую таску")
 
         if checks_result.get('status'):
             await state.set_state(SelectFilesForm.process_digits_set)
@@ -454,8 +481,11 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             try:
                 max_photo_amount = str(int((selected_cert.get('type').get('title')
                                             .replace("Обработка ", "").replace(" фото", ""))))
-            except Exception:
+            except Exception as e:
+                logger.error(f"max_photo_amount error: {e}")
                 max_photo_amount = None
+            logger.debug(f"max_photo_amount: {max_photo_amount}")
+
             await state.update_data(max_photo_amount=max_photo_amount)
             if max_photo_amount:
                 await callback.message.edit_text(
@@ -478,6 +508,8 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(f"Не удалось создать задачу по обработке",
                                              reply_markup=callback.message.reply_markup)
     else:
+        logger.debug('имеется таска')
+        await state.update_data(original_photo_path=selected_task_dict.get('folder_path'))
         await state.set_state(SelectFilesForm.process_digits_set)
         kb = await create_kb(
             ["Назад"], ["go_back:package_selected"])
@@ -499,16 +531,23 @@ async def process_digits_set(message: Message, state: FSMContext):
     selected_record_dict = data.get('selected_record_dict')
     selected_task_dict = data.get('selected_task_dict')
     selected_cert = data.get('selected_cert')
-    max_photo_amount = int(data.get('max_photo_amount')
-                        or selected_task_dict.get('max_photo_amount'))
+    max_photo_amount = int(data.get('max_photo_amount') or selected_task_dict.get('max_photo_amount'))
 
     photos_digits_set = set(message.text.split(" "))
     found_files = set()
 
+    logger.debug(f"checks_result: p_d_s {checks_result}")
+
     logger.debug(f"photos_digits_set: {photos_digits_set}")
+
+    logger.debug(f'selected photos len: {len(list(message.text.split(" ")))}')
+    logger.debug(f'max_photo_amountL {max_photo_amount}')
 
     if len(list(message.text.split(" "))) > max_photo_amount:
         await message.answer("Количество фото превышено")
+        return
+
+    logger.debug(f'original_photo_path: {original_photo_path}')
 
     for file in os.scandir(original_photo_path):
         if file.is_file():
@@ -522,6 +561,7 @@ async def process_digits_set(message: Message, state: FSMContext):
     missing_numbers = (photos_digits_set -
                        {file.name.split('-')[1].split('.')[0]
                         for file in os.scandir(original_photo_path) if file.is_file()})
+
     logger.debug(f"missing numbers: {missing_numbers}")
 
     if missing_numbers:
@@ -529,22 +569,32 @@ async def process_digits_set(message: Message, state: FSMContext):
             f"Эти номера не соответствуют "
             f"названиям Ваших фотографий: {' '.join(map(str, missing_numbers))}")
     else:
+        logger.debug(f'checks_result: {checks_result}')
+        task_data = None
         if checks_result.get('exists'):
             existing_task = checks_result.get('task')
 
-            if (existing_task.get('enhanced_files_count') +
-                    len(found_files) > max_photo_amount):
-                await message.answer("Общее количество выбранных фото превышено")
-            else:
-                existing_task['files_list'] = (
-                        (existing_task.get('files_list') or []) + list(found_files))
-                await enh_back_api.update_enhance_task(
-                    task_id=existing_task.get('id'),
-                    task_data={
-                        'files_list': existing_task.get('files_list'),
-                        'status': StatusEnum.QUEUED.value
-                    }
-                )
+            try:
+                if (existing_task.get('enhanced_files_count') +
+                        len(found_files) > max_photo_amount):
+                    await message.answer("Общее количество выбранных фото превышено")
+                    return
+                else:
+                    existing_task['files_list'] = (
+                            (existing_task.get('files_list') or []) + list(found_files))
+                    logger.debug(f'sending_task: {existing_task}')
+                    try:
+                        await enh_back_api.update_enhance_task(
+                            task_id=existing_task.get('id'),
+                            task_data={
+                                'files_list': existing_task.get('files_list'),
+                                'status': StatusEnum.QUEUED.value
+                            }
+                        )
+                    except Exception as e:
+                        logger.error(e)
+            except Exception as e:
+                logger.error(e)
         else:
             task_data = {
                 'folder_path': original_photo_path,
@@ -562,12 +612,14 @@ async def process_digits_set(message: Message, state: FSMContext):
             )
             logger.debug(f"created task: {new_task}")
 
-        try:
-            await prepare_enhance_task(original_photo_path, list(found_files))
-        except Exception as e:
-            logger.error(f"error prepare_enhance_task: {e}")
+        if task_data:
+            try:
+                await prepare_enhance_task(original_photo_path, list(found_files))
+            except Exception as e:
+                logger.error(f"error prepare_enhance_task: {e}")
         try:
             await add_to_ai_queue(
+                original_photo_path + "_task_" + task_data.get('yclients_certificate_code'),
                 original_photo_path + "_task",
                 studios_mapping[selected_record_dict.get('studio')],
                 True
@@ -619,15 +671,13 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
         await prepare_enhance_task(original_photo_path, files_list)
     except Exception as e:
         logger.error(f"error prepare_enhance_task: {e}")
-    try:
-        await add_to_ai_queue(
-            original_photo_path + "_task",
-            studios_mapping[selected_record_dict.get('studio')],
-            True
-        )
-        await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
-    except Exception as e:
-        logger.error(f"error add_to_ai_queue: {e}")
+    logger.debug(f"original_photo_path: {original_photo_path}")
+    await add_to_ai_queue(
+        original_photo_path + "_task",
+        studios_mapping[selected_record_dict.get('studio')],
+        True
+    )
+    await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
 
     await callback.message.answer(
         f"Все фото из папки добавлены в очередь \n"
