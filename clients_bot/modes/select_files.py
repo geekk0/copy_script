@@ -542,8 +542,13 @@ async def process_digits_set(message: Message, state: FSMContext):
 
     logger.debug(f'selected photos len: {len(list(message.text.split(" ")))}')
     logger.debug(f'max_photo_amountL {max_photo_amount}')
+    logger.debug(f'selected_task_dict: {selected_task_dict}')
 
-    if len(list(message.text.split(" "))) > max_photo_amount:
+    existing_photos = len(selected_task_dict.get('files_list')) if selected_task_dict else 0
+
+    logger.debug(f'existing_photos: {existing_photos}')
+
+    if len(list(message.text.split(" "))) + existing_photos > max_photo_amount:
         await message.answer("Количество фото превышено")
         return
 

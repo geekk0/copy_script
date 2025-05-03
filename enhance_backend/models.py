@@ -64,13 +64,11 @@ class EnhanceTask(models.Model):
     created_at = fields.DatetimeField(auto_now_add=True)
     enhanced_files_count = fields.IntField(default=0)
     files_list = fields.JSONField(default=list)
-    yclients_certificate_code = fields.IntField(null=True, default=None)
+    yclients_certificate_code = fields.CharField(max_length=100, null=True, default=None)
     yclients_certificate_type_id = fields.IntField(null=True, default=None)
     max_photo_amount = fields.IntField(null=True, default=None)
     price = fields.IntField()
-    # package = fields.ForeignKeyField(
-    #     'models.Package', related_name='enhance_tasks', on_delete=fields.CASCADE
-    # )
+
 
     class Meta:
         table = "enhancetasks"

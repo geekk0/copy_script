@@ -76,7 +76,7 @@ class EnhanceTaskResponseWithDetails(BaseModel):
     created_at: str
     enhanced_files_count: int
     files_list: Optional[list[str]]
-    yclients_certificate_code: Optional[int]
+    yclients_certificate_code: Optional[str]
     max_photo_amount: Optional[int]
 
     class Config:
