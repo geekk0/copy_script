@@ -4,7 +4,7 @@ from tortoise.exceptions import DoesNotExist
 from enhance_backend.models import Client
 from enhance_backend.schemas import ClientResponse, ClientRequest
 from enhance_backend.db_manager import DatabaseManager
-from enhance_backend.main import logger
+from enhance_backend.utils import logger
 
 clients_router = APIRouter(prefix="/clients")
 

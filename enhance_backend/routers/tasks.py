@@ -17,7 +17,7 @@ from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
 from clients_bot.utils import remove_task_folder
-from enhance_backend.main import logger
+from enhance_backend.utils import logger
 
 tasks_router = APIRouter(prefix="/tasks")
 
