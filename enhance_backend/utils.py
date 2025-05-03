@@ -1,4 +1,6 @@
 import os
+import logging
+
 from loguru import logger
 
 log_folder = os.path.join(os.getcwd(), "logs")
@@ -12,3 +14,18 @@ logger.add(
     compression="zip",
     level="DEBUG"
 )
+
+
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        logger.log(level, record.getMessage())
+
+
+logging.basicConfig(handlers=[InterceptHandler()], level=0)
+for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"):
+    logging.getLogger(logger_name).handlers = [InterceptHandler()]
+    logging.getLogger(logger_name).propagate = False
