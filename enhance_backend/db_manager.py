@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 from enhance_backend.models import Client, Order, EnhanceTask, Package
 from tortoise.exceptions import DoesNotExist
-from enhance_backend.main import logger
+from enhance_backend.utils import logger
 
 from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse
 
