@@ -80,20 +80,15 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
 
 
 @tasks_router.patch("/status")
-async def change_task_status(folder_path: str, status: str):
+async def change_task_status(task_id: int, status: str):
     try:
-        task_folder_path = folder_path.replace('_task', '')
-        tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
-        logger.debug(f"tasks_found_by_folder: {tasks_found_by_folder}")
-        status_enum = StatusEnum[status].value
-        if not tasks_found_by_folder:
-            return
-        else:
-            found_task = tasks_found_by_folder[0]
+        status_enum = get_status_enum_by_value(status)
+
+        logger.debug(f'status_enum: {status_enum}')
         task_update_data = (
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
-        await db_manager.update_enhance_task(found_task.id, task_update_data)
+        await db_manager.update_enhance_task(task_id, task_update_data)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:
@@ -189,3 +184,10 @@ async def share_folder(folder_path: str) -> str:
                 return ""
     except Exception as e:
         logger.error(f"Произошла ошибка в share_folder: {e}")
+
+
+def get_status_enum_by_value(value: str) -> StatusEnum:
+    for item in StatusEnum:
+        if item.value == value:
+            return item
+    raise HTTPException(status_code=400, detail=f"Недопустимое значение статуса: {value}")
