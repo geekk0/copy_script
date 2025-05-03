@@ -610,10 +610,10 @@ async def process_digits_set(message: Message, state: FSMContext):
                 "status": StatusEnum.QUEUED.value
             }
             logger.debug(f"task_data: {task_data}")
-            new_task = await enh_back_api.add_enhance_task(
+            task_data = await enh_back_api.add_enhance_task(
                 task_data=task_data
             )
-            logger.debug(f"created task: {new_task}")
+            logger.debug(f"created task: {task_data}")
 
         logger.debug(f'task_data: {task_data}')
 
@@ -625,11 +625,10 @@ async def process_digits_set(message: Message, state: FSMContext):
         try:
             await add_to_ai_queue(
                 original_photo_path + "_task_" + str(task_data.get('yclients_certificate_code')),
-                # original_photo_path + "_task",
                 studios_mapping[selected_record_dict.get('studio')],
                 True
             )
-            await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
+            await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value)
         except Exception as e:
             logger.error(f"error add_to_ai_queue: {e}")
 
@@ -682,7 +681,7 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
         studios_mapping[selected_record_dict.get('studio')],
         True
     )
-    await enh_back_api.change_task_status(original_photo_path, StatusEnum.QUEUED.value)
+    await enh_back_api.change_task_status(new_task.get('id'), StatusEnum.QUEUED.value)
 
     await callback.message.answer(
         f"Все фото из папки добавлены в очередь \n"
