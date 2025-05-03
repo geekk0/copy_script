@@ -62,6 +62,7 @@ async def add_task(task_data: EnhanceTaskRequest) -> EnhanceTaskResponse:
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")
     except Exception as e:
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -74,6 +75,7 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -97,6 +99,7 @@ async def change_task_status(folder_path: str, status: str):
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -108,6 +111,7 @@ async def remove_task(task_id: int) -> dict[str, str]:
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -145,6 +149,7 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
     except Exception as e:
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -185,4 +190,4 @@ async def share_folder(folder_path: str) -> str:
                 logging.error("URL не найден в ответе сервера")
                 return ""
     except Exception as e:
-        logging.error(f"Произошла ошибка в share_folder: {e}")
+        logger.error(f"Произошла ошибка в share_folder: {e}")
