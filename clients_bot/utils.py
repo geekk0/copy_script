@@ -67,14 +67,18 @@ async def run_indexing(path):
 
 
 async def add_to_ai_queue(folder, studio_name, task_mode=False):
+    logger.debug(f'folder: {folder}')
+    logger.debug(f'studio_name: {studio_name}')
+    logger.debug(f'task_mode: {task_mode}')
     ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
+    logger.debug(f'ai_queue_file_path: {ai_queue_file_path}')
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
 
-    if not any((task.get("folder_path") == folder and task.get("action") is None) for task in ai_index_queue):
-        if task_mode:
-            ai_index_queue.insert(0, {"folder_path": folder, "action": None})
-        else:
-            ai_index_queue.append({"folder_path": folder, "action": None})
+    if task_mode:
+        ai_index_queue.insert(0, {"folder_path": folder, "action": None})
+    else:
+        ai_index_queue.append({"folder_path": folder, "action": None})
+
     with open(ai_queue_file_path, 'w') as f:
         json.dump(ai_index_queue, fp=f, indent=4, ensure_ascii=False)
 

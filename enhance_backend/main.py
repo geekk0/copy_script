@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from os import environ
 from dotenv import load_dotenv
+from loguru import logger
 
 from enhance_backend.database.db_config import DATABASE_URL
 from enhance_backend.routers.clients import clients_router
@@ -38,6 +39,19 @@ async def shutdown():
 app.include_router(clients_router)
 app.include_router(tasks_router)
 app.include_router(packages_router)
+
+log_folder = os.path.join(os.getcwd(), "logs")
+if not os.path.exists(log_folder):
+    os.makedirs(log_folder)
+
+
+logger.add(
+    os.path.join(log_folder, "enhance_backend.log"),
+    format="{time} {level} {message}",
+    rotation="10 MB",
+    compression="zip",
+    level="DEBUG"
+)
 
 
 if __name__ == "__main__":

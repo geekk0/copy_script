@@ -595,6 +595,9 @@ async def process_digits_set(message: Message, state: FSMContext):
                         logger.error(e)
             except Exception as e:
                 logger.error(e)
+
+            task_data = existing_task
+
         else:
             task_data = {
                 'folder_path': original_photo_path,
@@ -612,6 +615,8 @@ async def process_digits_set(message: Message, state: FSMContext):
             )
             logger.debug(f"created task: {new_task}")
 
+        logger.debug(f'task_data: {task_data}')
+
         if task_data:
             try:
                 await prepare_enhance_task(original_photo_path, list(found_files))
@@ -619,8 +624,8 @@ async def process_digits_set(message: Message, state: FSMContext):
                 logger.error(f"error prepare_enhance_task: {e}")
         try:
             await add_to_ai_queue(
-                original_photo_path + "_task_" + task_data.get('yclients_certificate_code'),
-                original_photo_path + "_task",
+                original_photo_path + "_task_" + str(task_data.get('yclients_certificate_code')),
+                # original_photo_path + "_task",
                 studios_mapping[selected_record_dict.get('studio')],
                 True
             )
