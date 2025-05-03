@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from enhance_backend.models import Client, Order, EnhanceTask, Package
 from tortoise.exceptions import DoesNotExist
+from enhance_backend.main import logger
 
 from enhance_backend.schemas import ClientRequest, ClientResponse, EnhanceTaskResponse
 
@@ -42,10 +43,10 @@ class DatabaseManager:
     async def get_client_by_chat_id(chat_id: int) -> ClientResponse | None:
         try:
             client = await Client.get_or_none(chat_id=chat_id)
-            print(f"client: {client}")
+            logger.debug(f"client: {client}")
             return ClientResponse.model_validate(client) if client else None
         except Exception as e:
-            print(f"Error while fetching client: {e}")
+            logger.error(f"Error while fetching client: {e}")
 
     @staticmethod
     async def get_all_clients() -> list[ClientResponse]:
@@ -92,7 +93,7 @@ class DatabaseManager:
             task_data: EnhanceTaskResponse
     ) -> EnhanceTaskResponse:
         client = await Client.get(chat_id=client_chat_id)
-        print(f"task_data: {task_data}")
+        logger.debug(f"task_data: {task_data}")
         task = await EnhanceTask.create(
             client=client,
             folder_path=task_data.folder_path,

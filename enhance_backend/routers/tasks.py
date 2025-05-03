@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.exceptions import DoesNotExist
 from os import environ
+from bs4 import BeautifulSoup
+
 
 from enhance_backend.models import StatusEnum, Client, Package
 from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
@@ -15,8 +17,7 @@ from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.notifications import ClientsBot
 from clients_bot.utils import remove_task_folder
-from bs4 import BeautifulSoup
-
+from enhance_backend.main import logger
 
 tasks_router = APIRouter(prefix="/tasks")
 
@@ -49,7 +50,7 @@ async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")
     except Exception as e:
-        print(e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -84,7 +85,7 @@ async def change_task_status(folder_path: str, status: str):
         if status_enum is None:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
         tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
-        print(f"tasks_found_by_folder: {tasks_found_by_folder}")
+        logger.debug(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if not tasks_found_by_folder:
             return
         else:
@@ -116,7 +117,7 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
     try:
         task_folder_path = folder_path.replace('_task', '')
         tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
-        print(f"tasks_found_by_folder: {tasks_found_by_folder}")
+        logger.debug(f"tasks_found_by_folder: {tasks_found_by_folder}")
         if len(tasks_found_by_folder) == 0:
             return
         else:
@@ -124,17 +125,17 @@ async def task_is_completed(folder_dict: dict[str, str]) -> None:
 
         await found_task.fetch_related("client")
         client = found_task.client
-        print(f"client id: {client.id}")
+        logger.debug(f"client id: {client.id}")
         task_update_data = (
             EnhanceTaskUpdate(status=StatusEnum.COMPLETED).model_dump(exclude_unset=True)
         )
         await db_manager.update_enhance_task(found_task.id, task_update_data)
 
         folder_link = await share_folder(folder_path + "_AI")
-        print(f"folder_link: {folder_link}")
+        logger.debug(f"folder_link: {folder_link}")
 
         clients_bot = ClientsBot()
-        print(f"chat_id: {client.chat_id}")
+        logger.debug(f"chat_id: {client.chat_id}")
         text = f"Ваша папка обработана"
         if folder_link:
             text += f"\nссылка на скачивание:\n{folder_link}"
@@ -178,7 +179,7 @@ async def share_folder(folder_path: str) -> str:
 
             if link:
                 folder_link = link.text.strip()  # Получаем только текст из тега <url>
-                print(f"folder_link: {folder_link}")  # Печатаем чистую ссылку
+                logger.debug(f"folder_link: {folder_link}")  # Печатаем чистую ссылку
                 return folder_link
             else:
                 logging.error("URL не найден в ответе сервера")

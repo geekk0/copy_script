@@ -6,6 +6,8 @@ from tortoise.exceptions import DoesNotExist
 
 from enhance_backend.db_manager import DatabaseManager
 from enhance_backend.schemas import PackageResponse
+from enhance_backend.main import logger
+
 
 packages_router = APIRouter(prefix="/packages")
 

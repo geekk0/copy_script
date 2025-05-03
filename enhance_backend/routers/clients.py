@@ -4,6 +4,7 @@ from tortoise.exceptions import DoesNotExist
 from enhance_backend.models import Client
 from enhance_backend.schemas import ClientResponse, ClientRequest
 from enhance_backend.db_manager import DatabaseManager
+from enhance_backend.main import logger
 
 clients_router = APIRouter(prefix="/clients")
 
@@ -16,7 +17,7 @@ async def get_client_by_chat_id(client_chat_id: int) -> ClientResponse | None:
         client = await db_manager.get_client_by_chat_id(client_chat_id)
         return client
     except Exception as e:
-        print(f"Error while fetching client: {e}")
+        logger.error(f"Error while fetching client: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
