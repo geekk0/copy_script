@@ -46,5 +46,5 @@ if not os.path.exists(log_folder):
 if __name__ == "__main__":
     import uvicorn
     backend_port = environ.get("BACKEND_PORT")
-    print(f"backend_port: {backend_port}")
+    access_log = True
     uvicorn.run(app, host="0.0.0.0", port=int(backend_port))
