@@ -79,7 +79,7 @@ class EnhanceTaskResponseWithDetails(BaseModel):
     files_list: Optional[list[str]]
     yclients_certificate_code: Optional[str]
     max_photo_amount: Optional[int]
-    selected_action: str | None = None
+    selected_action: Optional[str]
 
     class Config:
         from_attributes = True

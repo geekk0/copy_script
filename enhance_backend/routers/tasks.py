@@ -42,6 +42,7 @@ async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
                 files_list=task.files_list or [],
                 yclients_certificate_code=task.yclients_certificate_code,
                 max_photo_amount=task.max_photo_amount,
+                selected_action=task.selected_action
             )
             for task in tasks
         ]

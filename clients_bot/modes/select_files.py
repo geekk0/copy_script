@@ -615,6 +615,13 @@ async def process_digits_set(message: Message, state: FSMContext):
                     except Exception as e:
                         logger.error(e)
 
+                    await message.answer(
+                        f"Выбраны для обработки:\n"
+                        f"{' '.join(map(str, existing_task.get('files_list')))}\n"
+                        f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+                    )
+                    return
+
             except Exception as e:
                 logger.error(e)
 

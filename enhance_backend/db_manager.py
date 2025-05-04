@@ -93,7 +93,6 @@ class DatabaseManager:
             task_data: EnhanceTaskResponse
     ) -> EnhanceTaskResponse:
         client = await Client.get(chat_id=client_chat_id)
-        logger.debug(f"task_data: {task_data}")
         task = await EnhanceTask.create(
             client=client,
             folder_path=task_data.folder_path,
