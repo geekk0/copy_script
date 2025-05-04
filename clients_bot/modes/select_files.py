@@ -769,11 +769,17 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
     await state.update_data(selected_cert=None)
     await state.set_state(SelectFilesForm.retouches_settings)
 
-    await callback.message.answer(
-        f"Выбраны для обработки:\n"
-        f"{' '.join(map(str, task_data.get('files_list')))}\n"
-        f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
-    )
+    if data.get('all_files_selected'):
+        await callback.message.answer(
+            f"Все фото из папки добавлены в очередь \n"
+            f"мы сообщим Вам как только они обработаются")
+
+    else:
+        await callback.message.answer(
+            f"Выбраны для обработки:\n"
+            f"{' '.join(map(str, task_data.get('files_list')))}\n"
+            f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+        )
 
 
 @form_router.callback_query(SelectFilesForm.process_all_files)
@@ -792,41 +798,44 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
 
     logger.debug(f"files_list: {str(len(files_list))}")
 
-    task_data = {
-        'folder_path': original_photo_path,
-        'yclients_record_id': int(selected_record_dict.get('record_id')),
-        'files_list': files_list,
-        "client_chat_id": callback.message.chat.id,
-        "yclients_certificate_code": selected_cert.get('number'),
-        "price": selected_cert.get('balance'),
-        "max_photo_amount": None,
-        "status": StatusEnum.QUEUED.value
-    }
-    logger.debug(f"task_data: {task_data}")
-    new_task = await enh_back_api.add_enhance_task(
-        task_data=task_data
-    )
-    logger.debug(f"created task: {new_task}")
-
-    try:
-        await prepare_enhance_task(
-            original_photo_path,
-            files_list,
-            task_data.get('yclients_certificate_code')
-        )
-    except Exception as e:
-        logger.error(f"error prepare_enhance_task: {e}")
-    logger.debug(f"original_photo_path: {original_photo_path}")
-    await add_to_ai_queue(
-        original_photo_path + "_task",
-        studios_mapping[selected_record_dict.get('studio')],
-        True
-    )
-    await enh_back_api.change_task_status(new_task.get('id'), StatusEnum.QUEUED.value)
-
-    await callback.message.answer(
-        f"Все фото из папки добавлены в очередь \n"
-        f"мы сообщим Вам как только они обработаются")
+    # task_data = {
+    #     'folder_path': original_photo_path,
+    #     'yclients_record_id': int(selected_record_dict.get('record_id')),
+    #     'files_list': files_list,
+    #     "client_chat_id": callback.message.chat.id,
+    #     "yclients_certificate_code": selected_cert.get('number'),
+    #     "price": selected_cert.get('balance'),
+    #     "max_photo_amount": None,
+    #     "status": StatusEnum.QUEUED.value
+    # }
+    # logger.debug(f"task_data: {task_data}")
+    # new_task = await enh_back_api.add_enhance_task(
+    #     task_data=task_data
+    # )
+    # logger.debug(f"created task: {new_task}")
+    #
+    # try:
+    #     await prepare_enhance_task(
+    #         original_photo_path,
+    #         files_list,
+    #         task_data.get('yclients_certificate_code')
+    #     )
+    # except Exception as e:
+    #     logger.error(f"error prepare_enhance_task: {e}")
+    # logger.debug(f"original_photo_path: {original_photo_path}")
+    # await add_to_ai_queue(
+    #     original_photo_path + "_task",
+    #     studios_mapping[selected_record_dict.get('studio')],
+    #     True
+    # )
+    # await enh_back_api.change_task_status(new_task.get('id'), StatusEnum.QUEUED.value)
+    #
+    # await callback.message.answer(
+    #     f"Все фото из папки добавлены в очередь \n"
+    #     f"мы сообщим Вам как только они обработаются")
+    await state.update_data(all_files_selected=True)
+    await state.set_state(SelectFilesForm.retouches_settings)
+    await retouches_settings(callback.message, state)
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
