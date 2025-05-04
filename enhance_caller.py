@@ -118,7 +118,7 @@ class EnhanceCaller:
             data["task"] = True
             if client_cert_code:
                 data['cert_code'] = client_cert_code
-            send_folder_status_to_backend(folder, StatusEnum.PROCESSING.value)
+                send_folder_status_to_backend(client_cert_code, StatusEnum.PROCESSING.value)
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
         self.bound_logger.debug(f'call for route: {enhance_folder_url}')
@@ -138,7 +138,7 @@ class EnhanceCaller:
             self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
             if "_task" in result_folder_name:
                 self.remove_task_folder(folder)
-                send_folder_status_to_backend(folder, StatusEnum.COMPLETED.value, completed=True)
+                send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
             self.remove_from_processed_folders(folder)
             return result_folder_name
 
