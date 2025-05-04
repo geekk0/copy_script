@@ -352,7 +352,7 @@ def send_folder_status_to_backend(cert_number, status, completed=False):
     url = f"http://127.0.0.1:{str(backend_port)}/tasks/status/change"
     if completed:
         url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
-    body = {"cert_number": cert_number, "status": status}
+    body = {"cert_number": cert_number}
     try:
         if completed:
             response = requests.post(url, json=body)
