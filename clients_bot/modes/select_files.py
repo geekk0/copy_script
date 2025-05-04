@@ -394,6 +394,7 @@ async def show_selected_task(callback: CallbackQuery, state: FSMContext):
                 callback_data.append("add_photo")
             text = (
                 f"Статус: {selected_task_dict.get('status')} \n"
+                f"Пресет обработки: {selected_task_dict.get('selected_action')} \n"
                 f"Выбранные файлы: "
                 f"{str(selected_task_dict.get('files_list')).replace('[]', ' Нет')}"
             )
@@ -746,7 +747,11 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
     # действия по таске
     if task_data:
         try:
-            await prepare_enhance_task(original_photo_path, task_data.get('files_list'))
+            await prepare_enhance_task(
+                original_photo_path,
+                task_data.get('files_list'),
+                task_data.get('yclients_certificate_code')
+            )
         except Exception as e:
             logger.error(f"error prepare_enhance_task: {e}")
     try:
@@ -804,7 +809,11 @@ async def process_all_files_callback(callback: CallbackQuery, state: FSMContext)
     logger.debug(f"created task: {new_task}")
 
     try:
-        await prepare_enhance_task(original_photo_path, files_list)
+        await prepare_enhance_task(
+            original_photo_path,
+            files_list,
+            task_data.get('yclients_certificate_code')
+        )
     except Exception as e:
         logger.error(f"error prepare_enhance_task: {e}")
     logger.debug(f"original_photo_path: {original_photo_path}")
