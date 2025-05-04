@@ -68,7 +68,7 @@ class EnhanceTask(models.Model):
     yclients_certificate_type_id = fields.IntField(null=True, default=None)
     max_photo_amount = fields.IntField(null=True, default=None)
     price = fields.IntField()
-
+    selected_action = fields.TextField(null=True, default=None)
 
     class Meta:
         table = "enhancetasks"

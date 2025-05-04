@@ -29,6 +29,7 @@ class EnhanceTaskRequest(BaseModel):
     yclients_certificate_type_id: int | None = None
     max_photo_amount: int | None = None
     price: int | None = None
+    selected_action: str | None = None
 
 
 EnhanceTaskResponse = pydantic_model_creator(
@@ -78,6 +79,7 @@ class EnhanceTaskResponseWithDetails(BaseModel):
     files_list: Optional[list[str]]
     yclients_certificate_code: Optional[str]
     max_photo_amount: Optional[int]
+    selected_action: str | None = None
 
     class Config:
         from_attributes = True
@@ -88,5 +90,5 @@ class EnhanceTaskUpdate(BaseModel):
     status: StatusEnum | None = None
     enhanced_files_count: int | None = None
     files_list: list[str] | None = None
-
+    selected_action: str | None = None
 

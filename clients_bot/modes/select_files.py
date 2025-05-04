@@ -3,8 +3,9 @@ import os
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, LabeledPrice, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.types import CallbackQuery
+from aiogram.types import (
+    Message, LabeledPrice, InlineKeyboardMarkup,
+    InlineKeyboardButton, CallbackQuery, FSInputFile)
 from datetime import datetime
 from PIL import Image, ImageOps
 from dotenv import load_dotenv
@@ -36,6 +37,9 @@ class SelectFilesForm(StatesGroup):
     add_photos = State()
     process_digits_set = State()
     process_all_files = State()
+    retouches_settings = State()
+    tone_settings = State()
+    finalize = State()
 
 
 studios_mapping = {
@@ -587,6 +591,8 @@ async def process_digits_set(message: Message, state: FSMContext):
                 else:
                     existing_task['files_list'] = (
                             (existing_task.get('files_list') or []) + list(found_files))
+
+                    # добавление файлов в существующую таску
                     logger.debug(f'sending_task: {existing_task}')
                     try:
                         await enh_back_api.update_enhance_task(
@@ -598,10 +604,22 @@ async def process_digits_set(message: Message, state: FSMContext):
                         )
                     except Exception as e:
                         logger.error(e)
+
+                    try:
+                        await add_to_ai_queue(
+                            original_photo_path + "_task_" + str(existing_task.get('yclients_certificate_code')),
+                            studios_mapping[selected_record_dict.get('studio')],
+                            True,
+                            existing_task.get('selected_action')
+                        )
+                    except Exception as e:
+                        logger.error(e)
+
             except Exception as e:
                 logger.error(e)
 
             task_data = existing_task
+            await state.update_data(task_data=task_data, task_status='update')
 
         else:
             task_data = {
@@ -615,33 +633,130 @@ async def process_digits_set(message: Message, state: FSMContext):
                 "status": StatusEnum.QUEUED.value
             }
             logger.debug(f"task_data: {task_data}")
-            task_data = await enh_back_api.add_enhance_task(
-                task_data=task_data
-            )
-            logger.debug(f"created task: {task_data}")
+            # task_data = await enh_back_api.add_enhance_task(
+            #     task_data=task_data
+            # )
+            # logger.debug(f"created task: {task_data}")
+            await state.update_data(task_data=task_data, task_status='create')
+            await retouches_settings(message, state)
 
         logger.debug(f'task_data: {task_data}')
 
-        if task_data:
-            try:
-                await prepare_enhance_task(original_photo_path, list(found_files))
-            except Exception as e:
-                logger.error(f"error prepare_enhance_task: {e}")
-        try:
-            await add_to_ai_queue(
-                original_photo_path + "_task_" + str(task_data.get('yclients_certificate_code')),
-                studios_mapping[selected_record_dict.get('studio')],
-                True
-            )
-            await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value)
-        except Exception as e:
-            logger.error(f"error add_to_ai_queue: {e}")
 
-        await message.answer(
-            f"Выбраны для обработки:\n"
-            f"{' '.join(map(str, found_files))}\n"
-            f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+@form_router.message(SelectFilesForm.retouches_settings)
+async def retouches_settings(message: Message, state: FSMContext):
+    data = await state.get_data()
+    task_data = data.get('task_data')
+    task_status = data.get('task_status')
+    logger.debug('retouches_settings')
+    logger.debug(f'task_data: {task_data}, task_status: {task_status}')
+
+    retouches_select_photos = {
+        'Hard': 'hard_normal.jpg',
+        'Normal': 'normal_normal.jpg',
+        'Light': 'light_normal.jpg'
+    }
+
+    try:
+        for setting, filename in retouches_select_photos.items():
+            photo = FSInputFile(f"/cloud/copy_script/clients_bot/photos/{filename}")
+            await message.answer_photo(photo, caption=setting)
+    except Exception as e:
+        logger.error(e)
+
+    settings_kb = await create_kb(
+        list(retouches_select_photos.keys()),
+        list(retouches_select_photos.keys()))
+
+    await state.set_state(SelectFilesForm.tone_settings)
+    await message.answer('Выберите настройку ретуши', reply_markup=settings_kb)
+
+
+@form_router.callback_query(SelectFilesForm.tone_settings)
+async def tone_settings(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    retouches_setting = callback.data
+
+    logger.debug('tone_settings')
+    logger.debug(f'retouches_setting: {retouches_setting}')
+
+    await state.update_data(retouches_setting=retouches_setting)
+
+    tone_select_photos_mapping = {
+        'Light': {
+            'Cold': 'light_cold.jpg',
+            'Normal': 'light_normal.jpg',
+            'Warm': 'light_warm.jpg'
+        },
+        'Normal': {
+            'Cold': 'normal_cold.jpg',
+            'Normal': 'normal_normal.jpg',
+            'Warm': 'normal_warm.jpg'
+        },
+        'Hard': {
+            'Cold': 'hard_cold.jpg',
+            'Normal': 'hard_normal.jpg',
+            'Warm': 'hard_warm.jpg'
+        }
+    }
+
+    try:
+        for setting, filename in tone_select_photos_mapping[retouches_setting].items():
+            photo = FSInputFile(f"/cloud/copy_script/clients_bot/photos/{filename}")
+            await callback.message.answer_photo(photo, caption=setting)
+    except Exception as e:
+        logger.error(e)
+
+    settings_kb = await create_kb(
+        list(tone_select_photos_mapping[retouches_setting].keys()),
+        list(tone_select_photos_mapping[retouches_setting].keys()))
+
+    await state.set_state(SelectFilesForm.finalize)
+    await callback.message.answer('Выберите настройку тона', reply_markup=settings_kb)
+
+
+@form_router.callback_query(SelectFilesForm.finalize)
+async def finalize(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    logger.debug('finalize')
+
+    retouches_setting = data.get('retouches_setting')
+    task_data = data.get('task_data')
+    original_photo_path = data.get('original_photo_path')
+    selected_record_dict = data.get('selected_record_dict')
+    tone_setting = callback.data
+
+    logger.debug(f'retouches_setting: {retouches_setting}, tone_setting: {tone_setting}')
+
+    action_name = f'{retouches_setting}_{tone_setting}'.lower()
+
+    logger.debug(f'action_name: {action_name}')
+
+    # действия по таске
+    if task_data:
+        try:
+            await prepare_enhance_task(original_photo_path, task_data.get('files_list'))
+        except Exception as e:
+            logger.error(f"error prepare_enhance_task: {e}")
+    try:
+        await add_to_ai_queue(
+            original_photo_path + "_task_" + str(task_data.get('yclients_certificate_code')),
+            studios_mapping[selected_record_dict.get('studio')],
+            True,
+            action_name
         )
+        await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value)
+    except Exception as e:
+        logger.error(f"error add_to_ai_queue: {e}")
+
+    await state.update_data(selected_cert=None)
+    await state.set_state(SelectFilesForm.retouches_settings)
+
+    await callback.message.answer(
+        f"Выбраны для обработки:\n"
+        f"{' '.join(map(str, task_data.get('files_list')))}\n"
+        f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+    )
 
 
 @form_router.callback_query(SelectFilesForm.process_all_files)

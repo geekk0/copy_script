@@ -66,7 +66,7 @@ async def run_indexing(path):
         return "Ошибка индексации"
 
 
-async def add_to_ai_queue(folder, studio_name, task_mode=False):
+async def add_to_ai_queue(folder, studio_name, task_mode=False, action=None):
     logger.debug(f'folder: {folder}')
     logger.debug(f'studio_name: {studio_name}')
     logger.debug(f'task_mode: {task_mode}')
@@ -75,7 +75,7 @@ async def add_to_ai_queue(folder, studio_name, task_mode=False):
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
 
     if task_mode:
-        ai_index_queue.insert(0, {"folder_path": folder, "action": None})
+        ai_index_queue.insert(0, {"folder_path": folder, "action": action})
     else:
         ai_index_queue.append({"folder_path": folder, "action": None})
 
