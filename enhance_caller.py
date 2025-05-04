@@ -3,6 +3,8 @@ import json
 import signal
 import subprocess
 import time
+from enum import Enum
+
 import pytz
 import requests
 import threading
@@ -15,13 +17,20 @@ from os import environ
 
 from photos_copy_script import FileCopier, read_config
 from tg_bot_aio.bot.utils import sudo_password
-from enhance_backend.schemas import StatusEnum
 
 exclusive_lock = threading.Lock()
 stop_event = threading.Event()
 
 load_dotenv()
 backend_port = environ.get('BACKEND_PORT')
+
+
+class StatusEnum(str, Enum):
+    PENDING = "Задача создана"
+    QUEUED = "Обработка добавлена в очередь"
+    PROCESSING = "Идет обработка"
+    COMPLETED = "Обработка завершена"
+    FAILED = "Ошибка обработки"
 
 
 enhancer_host_list = [
