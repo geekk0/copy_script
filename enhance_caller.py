@@ -15,6 +15,7 @@ from os import environ
 
 from photos_copy_script import FileCopier, read_config
 from tg_bot_aio.bot.utils import sudo_password
+from enhance_backend.schemas import StatusEnum
 
 exclusive_lock = threading.Lock()
 stop_event = threading.Event()
@@ -108,7 +109,7 @@ class EnhanceCaller:
             data["task"] = True
             if client_cert_code:
                 data['cert_code'] = client_cert_code
-            send_folder_status_to_backend(folder, "processing")
+            send_folder_status_to_backend(folder, StatusEnum.PROCESSING.value)
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
         self.bound_logger.debug(f'call for route: {enhance_folder_url}')
@@ -128,7 +129,7 @@ class EnhanceCaller:
             self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
             if "_task" in result_folder_name:
                 self.remove_task_folder(folder)
-                send_folder_status_to_backend(folder, "completed", completed=True)
+                send_folder_status_to_backend(folder, StatusEnum.COMPLETED.value, completed=True)
             self.remove_from_processed_folders(folder)
             return result_folder_name
 
@@ -338,16 +339,16 @@ def run_enh_callers_for_host(host):
         time.sleep(10)
 
 
-def send_folder_status_to_backend(folder, status, completed=False):
-    url = f"http://127.0.0.1:{str(backend_port)}/tasks/status"
+def send_folder_status_to_backend(cert_number, status, completed=False):
+    url = f"http://127.0.0.1:{str(backend_port)}/tasks/status/change"
     if completed:
         url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
-    body = {"folder": folder, "status": status}
+    body = {"cert_number": cert_number, "status": status}
     try:
         if completed:
             response = requests.post(url, json=body)
         else:
-            response = requests.patch(url, params={"folder_path": folder, "status": status})
+            response = requests.patch(url, params={"cert_number": cert_number, "status": status})
         if response.status_code != 200:
             logger.error(f"Failed to send folder status to backend: {response.status_code}")
     except Exception as e:

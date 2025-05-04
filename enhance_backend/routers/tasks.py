@@ -97,6 +97,24 @@ async def change_task_status(task_id: int, status: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@tasks_router.patch("/status/change")
+async def change_task_status(cert_number: str, status: str):
+    try:
+        status_enum = get_status_enum_by_value(status)
+
+        logger.debug(f'status_enum: {status_enum}')
+        task_update_data = (
+            EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
+        )
+        task = await db_manager.get_enhance_task_by_cert(cert_number)
+        await db_manager.update_enhance_task(task.id, task_update_data)
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Task not found")
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @tasks_router.delete("")
 async def remove_task(task_id: int) -> dict[str, str]:
     try:
@@ -110,35 +128,26 @@ async def remove_task(task_id: int) -> dict[str, str]:
 
 
 @tasks_router.post("/completed")
-async def task_is_completed(folder_dict: dict[str, str]) -> None:
-    folder_path = folder_dict.get("folder")
+async def task_is_completed(cert_number: str) -> None:
     try:
-        task_folder_path = folder_path.replace('_task', '')
-        tasks_found_by_folder = await db_manager.search_enhance_tasks_by_folder(task_folder_path)
-        logger.debug(f"tasks_found_by_folder: {tasks_found_by_folder}")
-        if len(tasks_found_by_folder) == 0:
-            return
-        else:
-            found_task = tasks_found_by_folder[0]
-
-        await found_task.fetch_related("client")
-        client = found_task.client
-        logger.debug(f"client id: {client.id}")
+        task = await db_manager.get_enhance_task_by_cert(cert_number)
+        folder_path = task.folder_path
+        client_chat_id = task.client.chat_id
         task_update_data = (
             EnhanceTaskUpdate(status=StatusEnum.COMPLETED).model_dump(exclude_unset=True)
         )
-        await db_manager.update_enhance_task(found_task.id, task_update_data)
+        await db_manager.update_enhance_task(task.id, task_update_data)
 
         folder_link = await share_folder(folder_path + "_AI")
         logger.debug(f"folder_link: {folder_link}")
 
         clients_bot = ClientsBot()
-        logger.debug(f"chat_id: {client.chat_id}")
+        logger.debug(f"chat_id: {client_chat_id}")
         text = f"Ваша папка обработана"
         if folder_link:
             text += f"\nссылка на скачивание:\n{folder_link}"
-        await clients_bot.send_notification(client.chat_id, text)
-        await remove_task_folder(folder_dict.get("folder"))
+        await clients_bot.send_notification(client_chat_id, text)
+        await remove_task_folder(folder_path)
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")

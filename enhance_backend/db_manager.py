@@ -115,6 +115,11 @@ class DatabaseManager:
         ).select_related('client')
 
     @staticmethod
+    async def get_enhance_task_by_cert(cert_number):
+        return await EnhanceTask.get(cert_number=cert_number)
+
+
+    @staticmethod
     async def update_enhance_task(task_id: int, task_data: EnhanceTaskResponse) -> EnhanceTask:
         try:
             task = await EnhanceTask.get_or_none(id=task_id)
