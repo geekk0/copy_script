@@ -116,7 +116,7 @@ class DatabaseManager:
 
     @staticmethod
     async def get_enhance_task_by_cert(cert_number):
-        return await EnhanceTask.get(cert_number=cert_number)
+        return await EnhanceTask.get(yclients_certificate_code=cert_number)
 
 
     @staticmethod
