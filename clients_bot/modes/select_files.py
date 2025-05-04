@@ -633,10 +633,7 @@ async def process_digits_set(message: Message, state: FSMContext):
                 "status": StatusEnum.QUEUED.value
             }
             logger.debug(f"task_data: {task_data}")
-            # task_data = await enh_back_api.add_enhance_task(
-            #     task_data=task_data
-            # )
-            # logger.debug(f"created task: {task_data}")
+
             await state.update_data(task_data=task_data, task_status='create')
             await retouches_settings(message, state)
 
@@ -732,6 +729,13 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
 
     logger.debug(f'action_name: {action_name}')
 
+    task_data['selected_action'] = action_name
+
+    task_data = await enh_back_api.add_enhance_task(
+        task_data=task_data
+    )
+    logger.debug(f"created task: {task_data}")
+
     # действия по таске
     if task_data:
         try:
@@ -745,6 +749,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
             True,
             action_name
         )
+        logger.debug(f"task_id: {task_data.get('id')}, status: {StatusEnum.QUEUED.value}")
         await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value)
     except Exception as e:
         logger.error(f"error add_to_ai_queue: {e}")

@@ -101,7 +101,8 @@ class DatabaseManager:
             files_list=task_data.files_list,
             price=task_data.price,
             max_photo_amount=task_data.max_photo_amount,
-            yclients_certificate_code=task_data.yclients_certificate_code
+            yclients_certificate_code=task_data.yclients_certificate_code,
+            selected_action=task_data.selected_action
         )
         return EnhanceTaskResponse.model_validate(task)
 
