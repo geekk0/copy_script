@@ -128,7 +128,8 @@ async def remove_task(task_id: int) -> dict[str, str]:
 
 
 @tasks_router.post("/completed")
-async def task_is_completed(cert_number: str) -> None:
+async def task_is_completed(task_data: dict) -> None:
+    cert_number = task_data.get('cert_number')
     try:
         task = await db_manager.get_enhance_task_by_cert(cert_number)
         folder_path = task.folder_path
