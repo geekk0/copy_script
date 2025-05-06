@@ -607,6 +607,15 @@ async def process_digits_set(message: Message, state: FSMContext):
                         logger.error(e)
 
                     try:
+                        await prepare_enhance_task(
+                            original_photo_path,
+                            existing_task.get('files_list'),
+                            existing_task.get('yclients_certificate_code')
+                        )
+                    except Exception as e:
+                        logger.error(f"error prepare_enhance_task: {e}")
+
+                    try:
                         await add_to_ai_queue(
                             original_photo_path + "_task_" + str(existing_task.get('yclients_certificate_code')),
                             studios_mapping[selected_record_dict.get('studio')],
