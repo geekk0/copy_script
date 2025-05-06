@@ -132,7 +132,7 @@ async def task_is_completed(task_data: dict) -> None:
     cert_number = task_data.get('cert_number')
     try:
         task = await db_manager.get_enhance_task_by_cert(cert_number)
-        client = await Client.get(id=task.client)
+        client = await task.client.first()
         folder_path = task.folder_path
         client_chat_id = client.chat_id
         task_update_data = (
