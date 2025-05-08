@@ -149,7 +149,7 @@ async def task_is_completed(task_data: dict) -> None:
         if folder_link:
             text += f"\nссылка на скачивание:\n{folder_link}"
         await clients_bot.send_notification(client_chat_id, text)
-        await remove_task_folder(folder_path)
+        # await remove_task_folder(folder_path)
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
