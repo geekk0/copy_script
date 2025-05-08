@@ -137,6 +137,7 @@ class EnhanceCaller:
             result_folder_name = response.json().get('folder_name')
             self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
             if "_task" in result_folder_name:
+                logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
                 send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
             self.remove_from_processed_folders(folder)
