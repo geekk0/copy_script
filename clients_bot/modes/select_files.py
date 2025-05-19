@@ -764,13 +764,16 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
 
     if data.get('updating_task'):
         updating_task_data = data.get('updating_task')
+        if 'finalize' in callback.data:
+            action_name = updating_task_data['selected_action']
+        else:
+            action_name = f'{retouches_setting}_{tone_setting}'.lower()
+
         sending_task_data = {
             'files_list': updating_task_data.get('files_list'),
-            'status': StatusEnum.QUEUED.value
+            'status': StatusEnum.QUEUED.value,
+            'selected_action': action_name
         }
-
-        if action_name:
-            sending_task_data['selected_action'] = action_name
 
         await enh_back_api.update_enhance_task(
             task_id=updating_task_data.get('id'),
