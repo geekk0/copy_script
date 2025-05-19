@@ -36,6 +36,7 @@ class SelectFilesForm(StatesGroup):
     new_task_screen = State()
     add_photos = State()
     process_digits_set = State()
+    process_update_task = State()
     process_all_files = State()
     retouches_settings = State()
     tone_settings = State()
@@ -594,41 +595,48 @@ async def process_digits_set(message: Message, state: FSMContext):
                             (existing_task.get('files_list') or []) + list(found_files))
 
                     # добавление файлов в существующую таску
-                    logger.debug(f'sending_task: {existing_task}')
-                    try:
-                        await enh_back_api.update_enhance_task(
-                            task_id=existing_task.get('id'),
-                            task_data={
-                                'files_list': existing_task.get('files_list'),
-                                'status': StatusEnum.QUEUED.value
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(e)
+                    logger.debug(f'put existing_task: {existing_task}')
+                    await state.update_data(updating_task=existing_task)
+                    # try:
+                    #     await enh_back_api.update_enhance_task(
+                    #         task_id=existing_task.get('id'),
+                    #         task_data={
+                    #             'files_list': existing_task.get('files_list'),
+                    #             'status': StatusEnum.QUEUED.value
+                    #         }
+                    #     )
+                    # except Exception as e:
+                    #     logger.error(e)
+                    #
+                    # try:
+                    #     await prepare_enhance_task(
+                    #         original_photo_path,
+                    #         existing_task.get('files_list'),
+                    #         existing_task.get('yclients_certificate_code')
+                    #     )
+                    # except Exception as e:
+                    #     logger.error(f"error prepare_enhance_task: {e}")
+                    #
+                    # try:
+                    #     await add_to_ai_queue(
+                    #         original_photo_path + "_task_" + str(existing_task.get('yclients_certificate_code')),
+                    #         studios_mapping[selected_record_dict.get('studio')],
+                    #         True,
+                    #         existing_task.get('selected_action')
+                    #     )
+                    # except Exception as e:
+                    #     logger.error(e)
 
-                    try:
-                        await prepare_enhance_task(
-                            original_photo_path,
-                            existing_task.get('files_list'),
-                            existing_task.get('yclients_certificate_code')
-                        )
-                    except Exception as e:
-                        logger.error(f"error prepare_enhance_task: {e}")
+                    update_task_kb = await create_kb(
+                        ['Настроить', 'Готово'], ['select_preset', 'finalize'])
 
-                    try:
-                        await add_to_ai_queue(
-                            original_photo_path + "_task_" + str(existing_task.get('yclients_certificate_code')),
-                            studios_mapping[selected_record_dict.get('studio')],
-                            True,
-                            existing_task.get('selected_action')
-                        )
-                    except Exception as e:
-                        logger.error(e)
+                    await state.set_state(SelectFilesForm.process_update_task)
 
                     await message.answer(
                         f"Выбраны для обработки:\n"
-                        f"{' '.join(map(str, existing_task.get('files_list')))}\n"
-                        f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+                        f"{' '.join(map(str, existing_task.get('files_list')))}\n",
+                        reply_markup=update_task_kb
+                        #f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
                     )
                     return
 
@@ -655,6 +663,18 @@ async def process_digits_set(message: Message, state: FSMContext):
             await retouches_settings(message, state)
 
         logger.debug(f'task_data: {task_data}')
+
+
+@form_router.callback_query(SelectFilesForm.process_update_task)
+async def process_update_task(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    if data.get('updating_task'):
+        if callback.data == "select_preset":
+            await state.set_state(SelectFilesForm.retouches_settings)
+            await retouches_settings(message=callback.message, state=state)
+        elif callback.data == "finalize":
+            await state.set_state(SelectFilesForm.finalize)
+            await finalize(callback, state)
 
 
 @form_router.message(SelectFilesForm.retouches_settings)
@@ -740,9 +760,47 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
     selected_record_dict = data.get('selected_record_dict')
     tone_setting = callback.data
 
-    logger.debug(f'retouches_setting: {retouches_setting}, tone_setting: {tone_setting}')
-
     action_name = f'{retouches_setting}_{tone_setting}'.lower()
+
+    if data.get('updating_task'):
+        updating_task_data = data.get('updating_task')
+        sending_task_data = {
+            'files_list': updating_task_data.get('files_list'),
+            'status': StatusEnum.QUEUED.value
+        }
+
+        if action_name:
+            sending_task_data['selected_action'] = action_name
+
+        await enh_back_api.update_enhance_task(
+            task_id=updating_task_data.get('id'),
+            task_data=sending_task_data
+        )
+
+        try:
+            await add_to_ai_queue(
+                folder=original_photo_path + "_task_" + str(
+                    updating_task_data.get('yclients_certificate_code')),
+                studio_name=studios_mapping[selected_record_dict.get('studio')],
+                task_mode=True,
+                action=action_name
+            )
+
+            files_list = updating_task_data.get('files_list')
+
+            await state.update_data(selected_cert=None, updating_task_data=None, task_data=None)
+
+            await callback.message.answer(
+                f"Выбраны для обработки:\n"
+                f"{' '.join(map(str, files_list))}\n"
+                f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
+            )
+
+        except Exception as e:
+            logger.error(e)
+        return
+
+    logger.debug(f'task_data: {task_data}')
 
     logger.debug(f'action_name: {action_name}')
 
@@ -775,8 +833,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"error add_to_ai_queue: {e}")
 
-    await state.update_data(selected_cert=None)
-    await state.set_state(SelectFilesForm.retouches_settings)
+    await state.update_data(selected_cert=None, updating_task_data=None, task_data=None)
 
     if data.get('all_files_selected'):
         await callback.message.answer(

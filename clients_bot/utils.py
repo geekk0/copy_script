@@ -70,9 +70,14 @@ async def add_to_ai_queue(folder, studio_name, task_mode=False, action=None):
     logger.debug(f'folder: {folder}')
     logger.debug(f'studio_name: {studio_name}')
     logger.debug(f'task_mode: {task_mode}')
+    logger.debug(f'action: {action}')
     ai_queue_file_path = await get_ai_enhance_queue_file(studio_name)
     logger.debug(f'ai_queue_file_path: {ai_queue_file_path}')
     ai_index_queue = await get_ai_queue(ai_queue_file_path)
+
+    for queue in ai_index_queue:
+        if queue['folder_path'] == folder and queue['action'] == action:
+            return
 
     if task_mode:
         ai_index_queue.insert(0, {"folder_path": folder, "action": action})
