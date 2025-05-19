@@ -218,6 +218,7 @@ async def get_records(message: Message, state: FSMContext):
 
     record_ids = [str(record.get("record_id")) for record in records]
     record_dates = [record.get("date") for record in records]
+    # record_dates = [str(f'{record.get("date")} {str(record.get("studio"))}') for record in records]
 
     records_kb = await create_kb(record_dates, record_ids)
     await state.set_state(SelectFilesForm.show_user_certs)
@@ -286,8 +287,8 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.process_certs_screen)
     try:
         await callback.message.edit_text(
-            text="Выберите приобретенный сертификат по кнопке с количеством фото (или 'всех фото)', \n"
-                 "если у Вас уже есть задание на обработку, \n"
+            text="Выберите приобретенный сертификат по кнопке с количеством фото (или 'всех фото'), \n"
+                 "если у Вас уже есть задания на обработку, \n"
                  "их можно редактировать в разделе 'В обработке'.\n"
                  "Также можно купить новый по кнопке 'Купить'.",
             reply_markup=select_package_kb)
@@ -506,7 +507,7 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
                     f"возможности убрать выбранные вами файлы не будет, однако Вы можете выбрать"
                     f"меньшее количество файлов, \n чем указано в вашем пакете, "
                     f"и потом добавить файлы в обработку. \n"
-                    f"Общее количество обработанных файлов ограничено выбранным Вами пакетом",
+                    f"Общее количество обработанных файлов ограничено выбранным Вами пакетом.",
                     reply_markup=kb
                 )
             else:
