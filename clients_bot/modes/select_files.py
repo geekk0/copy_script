@@ -286,7 +286,11 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.process_certs_screen)
     try:
         await callback.message.edit_text(
-            text="Выберите имеющийся или новый сертификат:", reply_markup=select_package_kb)
+            text="Выберите приобретенный сертификат по кнопке с количеством фото (или 'всех фото)', \n"
+                 "если у Вас уже есть задание на обработку, \n"
+                 "их можно редактировать в разделе 'В обработке'.\n"
+                 "Также можно купить новый по кнопке 'Купить'.",
+            reply_markup=select_package_kb)
     except:
         await callback.message.delete()
         await state.set_state(SelectFilesForm.get_user_records)
@@ -496,13 +500,13 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             if max_photo_amount:
                 await callback.message.edit_text(
                     f"Выберите фото для обработки из Вашей папки\n"
-                    f"введите через пробел цифровые значения "
-                    f"из названий до {max_photo_amount} файлов"
+                    f"и введите через пробел цифровые значения "
+                    f"из названий до {max_photo_amount} файлов\n"
                     f"Пожалуйста, внимательно выбирайте номера, после запуска обработки, \n"
-                    f"возможности убрать выбранные вами файлы не будет, однако Вы можете выбрать \n"
-                    f"меньшее количество файлов, чем указано в вашем пакете, \n"
+                    f"возможности убрать выбранные вами файлы не будет, однако Вы можете выбрать"
+                    f"меньшее количество файлов, \n чем указано в вашем пакете, "
                     f"и потом добавить файлы в обработку. \n"
-                    f"общее количество обработанных файлов ограничено выбранным Вами пакетом",
+                    f"Общее количество обработанных файлов ограничено выбранным Вами пакетом",
                     reply_markup=kb
                 )
             else:
