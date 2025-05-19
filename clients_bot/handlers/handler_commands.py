@@ -18,14 +18,13 @@ command_router = Router()
 
 
 @command_router.message(CommandStart())
-async def handle_start_command(message: Message):
-    await message.answer(text="Weclcome to reflect clients bot")
-    logger.debug("client with id: " + str(message.from_user.id) + " started")
-
-
-@command_router.message(Command("choose_photos"))
-async def choose_photos(message: Message, state: FSMContext):
+async def handle_start_command(message: Message, state: FSMContext):
     await start_select_files_form(message, state)
+
+
+# @command_router.message(Command("choose_photos"))
+# async def choose_photos(message: Message, state: FSMContext):
+#     await start_select_files_form(message, state)
 
 
 @command_router.message(Command("logout"))

@@ -221,7 +221,7 @@ async def get_records(message: Message, state: FSMContext):
 
     records_kb = await create_kb(record_dates, record_ids)
     await state.set_state(SelectFilesForm.show_user_certs)
-    await message.answer(text="Выберите нужную запись", reply_markup=records_kb)
+    await message.answer(text="Добро пожаловать в Reflect Retouch! Выберите нужную запись", reply_markup=records_kb)
 
 
 @form_router.callback_query(SelectFilesForm.show_user_certs)
