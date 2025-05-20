@@ -319,7 +319,9 @@ async def process_certs_screen(callback: CallbackQuery, state: FSMContext):
     elif callback.data == "new_package" or as_new_package:
         available_packages = await enh_back_api.get_available_packages()
         logger.debug(f"available_packages: {available_packages}")
-        text = f"Выбор и оплата пакета"
+        text = (f'Выбор и оплата пакета\n'
+                f'После покупки пакета, вернитесь в бота, \n'
+                f' нажмите "назад" или команду "/start" и выберите купленный вами пакет обработки')
 
         packages_labels = [f"{package.get('name')} - {str(package.get('price'))} руб"
                            for package in available_packages]
@@ -501,13 +503,13 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             if max_photo_amount:
                 await callback.message.edit_text(
                     f"Выберите фото для обработки из Вашей папки\n"
-                    f"и введите через пробел цифровые значения "
-                    f"из названий до {max_photo_amount} файлов\n"
-                    f"Пожалуйста, внимательно выбирайте номера, после запуска обработки, \n"
-                    f"возможности убрать выбранные вами файлы не будет, однако Вы можете выбрать"
-                    f"меньшее количество файлов, \n чем указано в вашем пакете, "
-                    f"и потом добавить файлы в обработку. \n"
-                    f"Общее количество обработанных файлов ограничено выбранным Вами пакетом.",
+                    f"и введите через пробел цифровые значения из названий "
+                    f"до {max_photo_amount} файлов (для примера 988345 988356 ...)\n\n"
+                    f"- ❗️ Пожалуйста, внимательно выбирайте номера, после запуска обработки, "
+                    f"возможности убрать выбранные вами файлы не будет ❗️ \n"
+                    f"- Вы можете выбрать меньшее количество файлов, "
+                    f"чем указано в вашем пакете, и потом добавить файлы в обработку \n\n"
+                    f"- Общее количество обработанных файлов ограничено выбранным Вами пакетом.",
                     reply_markup=kb
                 )
             else:
