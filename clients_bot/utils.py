@@ -44,7 +44,9 @@ async def prepare_enhance_task(
     if not os.path.exists(task_folder):
         os.mkdir(task_folder)
     for file in files:
-        shutil.copy(os.path.join(folder, file), task_folder)
+        dst_path = os.path.join(task_folder, file)
+        if not os.path.exists(dst_path):
+            shutil.copy(os.path.join(folder, file), dst_path)
     await run_indexing(task_folder)
 
 

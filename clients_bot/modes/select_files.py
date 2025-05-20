@@ -287,10 +287,10 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.process_certs_screen)
     try:
         await callback.message.edit_text(
-            text="Выберите приобретенный сертификат по кнопке с количеством фото (или 'всех фото'), \n"
-                 "если у Вас уже есть задания на обработку, \n"
-                 "их можно редактировать в разделе 'В обработке'.\n"
-                 "Также можно купить новый по кнопке 'Купить'.",
+            text="Выберите приобретенный пакет обработки. \n\n"
+                 'Если у Вас уже есть задания на обработку, " \n'
+                 'их можно редактировать кнопкой "В обработке\n\n'
+                 'Также можно купить новый пакет кнопкой "Купить"',
             reply_markup=select_package_kb)
     except:
         await callback.message.delete()
@@ -377,7 +377,9 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     await state.update_data(previous_step="show_user_tasks")
     await state.set_state(SelectFilesForm.show_selected_task)
     await callback.message.edit_text(
-        text="Выберите ваше задание обработки:", reply_markup=select_package_kb)
+        text="В этом разделе вы можете видеть как запущенные вами, так и завершенные, задания по обработке.\n\n"
+             'Для того чтобы добавить фото, выберите нужны пакет и нажмите "Добавить фото"',
+        reply_markup=select_package_kb)
 
 
 @form_router.callback_query(SelectFilesForm.show_selected_task)
@@ -401,6 +403,7 @@ async def show_selected_task(callback: CallbackQuery, state: FSMContext):
                 callback_labels.append("Добавить фото")
                 callback_data.append("add_photo")
             text = (
+                f'Номер задания: {selected_task_dict.get("id")} \n'
                 f"Статус: {selected_task_dict.get('status')} \n"
                 f"Пресет обработки: {selected_task_dict.get('selected_action')} \n"
                 f"Выбранные файлы: "
@@ -793,6 +796,15 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
         )
 
         try:
+            try:
+                await prepare_enhance_task(
+                    updating_task_data.get('folder_path'),
+                    sending_task_data.get('files_list'),
+                    updating_task_data.get('yclients_certificate_code')
+                )
+            except Exception as e:
+                logger.error(f"error prepare_enhance_task: {e}")
+
             await add_to_ai_queue(
                 folder=original_photo_path + "_task_" + str(
                     updating_task_data.get('yclients_certificate_code')),
