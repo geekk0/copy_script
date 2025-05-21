@@ -82,7 +82,7 @@ async def add_to_ai_queue(folder, studio_name, task_mode=False, action=None):
             return
 
     if task_mode:
-        ai_index_queue.insert(0, {"folder_path": folder, "action": action})
+        ai_index_queue.append({"folder_path": folder, "action": action})
     else:
         ai_index_queue.append({"folder_path": folder, "action": None})
 

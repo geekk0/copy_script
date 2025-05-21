@@ -378,7 +378,7 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.show_selected_task)
     await callback.message.edit_text(
         text="В этом разделе вы можете видеть как запущенные вами, так и завершенные, задания по обработке.\n\n"
-             'Для того чтобы добавить фото, выберите нужны пакет и нажмите "Добавить фото"',
+             'Для того чтобы добавить фото, выберите нужный пакет и нажмите "Добавить фото"',
         reply_markup=select_package_kb)
 
 
