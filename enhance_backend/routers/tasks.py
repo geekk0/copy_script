@@ -134,13 +134,14 @@ async def task_is_completed(task_data: dict) -> None:
         task = await db_manager.get_enhance_task_by_cert(cert_number)
         client = await task.client.first()
         folder_path = task.folder_path
+        actual_folder = f'{folder_path}_task_{str(task.yclients_certificate_code)}_AI'
         client_chat_id = client.chat_id
         task_update_data = (
             EnhanceTaskUpdate(status=StatusEnum.COMPLETED).model_dump(exclude_unset=True)
         )
         await db_manager.update_enhance_task(task.id, task_update_data)
 
-        folder_link = await share_folder(folder_path + "_AI")
+        folder_link = await share_folder(actual_folder)
         logger.debug(f"folder_link: {folder_link}")
 
         clients_bot = ClientsBot()
