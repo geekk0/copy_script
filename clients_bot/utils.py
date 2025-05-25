@@ -152,3 +152,8 @@ async def remove_task_folder(folder):
 
     if process.returncode == 0:
         await run_indexing(os.path.dirname(folder))
+
+
+async def get_folder_files_list(folder):
+    logger.debug(f'get files list from folder: {folder}')
+    return os.listdir(folder)

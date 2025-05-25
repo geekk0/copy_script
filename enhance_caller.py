@@ -136,10 +136,14 @@ class EnhanceCaller:
             self.bound_logger.debug(f"response data: {response.json()}")
             result_folder_name = response.json().get('folder_name')
             self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
-            if "_task" in result_folder_name:
+            if '_renamed' in result_folder_name:
+                os.rename(folder, folder.replace('_renamed', ''))
+                os.rename(result_folder_name, result_folder_name.replace('_renamed', ''))
+                result_folder_name = result_folder_name.replace('_renamed', '')
+            elif "_task" in result_folder_name:
                 logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
-                send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
+            send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
             self.remove_from_processed_folders(folder)
             return result_folder_name
 
