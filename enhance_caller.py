@@ -112,19 +112,31 @@ class EnhanceCaller:
             "task": False
         }
 
+        logger.debug(f'data["hour"]: {data["hour"]}')
+        renamed = False
+
         if "_task" in data["hour"]:
             client_cert_code = data["hour"].split("_task_")[1]
             data["hour"] = data["hour"].split("_task")[0]
             data["task"] = True
             if client_cert_code:
                 data['cert_code'] = client_cert_code
-                send_folder_status_to_backend(client_cert_code, StatusEnum.PROCESSING.value)
+                if '_renamed' in client_cert_code:
+                    renamed = True
+                    send_folder_status_to_backend(
+                        client_cert_code.replace('_renamed', ''),
+                        StatusEnum.PROCESSING.value)
+                else:
+                    send_folder_status_to_backend(client_cert_code,
+                                                  StatusEnum.PROCESSING.value)
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
         self.bound_logger.debug(f'call for route: {enhance_folder_url}')
 
         response = requests.post(enhance_folder_url, json=data)
-        self.bound_logger.error(f'response.json() {response.json()}')
+
+        self.bound_logger.debug(f'web enhancer response: {response.json()}')
+
         if response.status_code != 200:
             if 'already exists' not in response.json().get('error_message'):
                 self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
@@ -132,19 +144,50 @@ class EnhanceCaller:
         elif response.json().get('error'):
             self.bound_logger.error(f"studio {self.studio}: Error occurred: {response.json().get('error_message')}")
 
+
         else:
+
             self.bound_logger.debug(f"response data: {response.json()}")
+            #
             result_folder_name = response.json().get('folder_name')
-            self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
-            if '_renamed' in result_folder_name:
-                os.rename(folder, folder.replace('_renamed', ''))
-                os.rename(result_folder_name, result_folder_name.replace('_renamed', ''))
-                result_folder_name = result_folder_name.replace('_renamed', '')
+            #
+            # self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
+            #
+            # if "_task" in result_folder_name:
+            #     logger.debug(f'remove_folder: {folder}')
+            #
+            #     self.remove_task_folder(folder)
+            #
+            #     send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
+            #
+            # self.remove_from_processed_folders(folder)
+            #
+            # return result_folder_name
+
+            if renamed:
+                old_folder_name = folder.split("_")[0]
+                os.rename(folder, old_folder_name)
+                new_result_folder_name = result_folder_name.replace('_renamed', '')
+                upper_level_folder = os.path.dirname(folder)
+                self.remove_from_ai_queue(folder)
+                os.rename(os.path.join(upper_level_folder, result_folder_name),
+                          os.path.join(upper_level_folder, new_result_folder_name))
+                self.index_folder(upper_level_folder)
+                self.index_folder(new_result_folder_name)
+                result_folder_name = new_result_folder_name
+                self.bound_logger.debug(f'client_cert_code: {client_cert_code}')
+
+                cert_number = client_cert_code.replace('_renamed', '')
+                self.bound_logger.debug(f'client_cert_code: {cert_number}')
+                send_folder_status_to_backend(cert_number, StatusEnum.COMPLETED.value, completed=True)
             elif "_task" in result_folder_name:
-                logger.debug(f'remove_folder: {folder}')
+                self.bound_logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
-            send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
-            self.remove_from_processed_folders(folder)
+                send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
+            try:
+                self.remove_from_processed_folders(folder)
+            except Exception as e:
+                self.bound_logger.error(e)
             return result_folder_name
 
     def get_folder_action(self, folder):
@@ -204,6 +247,8 @@ class EnhanceCaller:
                 action = self.get_folder_action(folder)
                 self.bound_logger.debug(f'studio "{self.studio}": action: {action}')
                 old_folder_name = folder.split("/")[-1]
+                logger.debug(f'enhance_folder name: {old_folder_name}')
+
                 new_folder_name = self.enhance_folder(folder, action)
                 self.bound_logger.debug(f"new_folder_name: {new_folder_name}")
                 new_folder = folder.replace(old_folder_name, new_folder_name)
