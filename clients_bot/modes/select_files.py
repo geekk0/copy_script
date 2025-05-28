@@ -173,6 +173,7 @@ async def compress_image(image_name, image_path):
 async def create_user(message: Message, state: FSMContext):
     phone = message.text
     logger.debug(f"phone before: {phone}")
+    phone = phone.replace(' ', '').replace('-', '')
     if phone.startswith('8'):
         phone = phone.replace('8', '7', 1)
     if phone.startswith('9'):
@@ -290,10 +291,10 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     await state.set_state(SelectFilesForm.process_certs_screen)
     try:
         await callback.message.edit_text(
-            text="Выберите приобретенный пакет обработки. \n\n"
-                 'Если у Вас уже есть задания на обработку, " \n'
-                 'их можно редактировать кнопкой "В обработке\n\n'
-                 'Также можно купить новый пакет кнопкой "Купить"',
+            text="Чтобы приобрести пакет обработки, нажмите кнопку. \n"
+                 '"Купить", либо выберите из уже имеющихся пакетов. " \n\n'
+                 'Запущенные вами процессы отображаются в разделе "В обработке" '
+                 'где вы можете добавить фотографии на обработку.',
             reply_markup=select_package_kb)
     except:
         await callback.message.delete()
@@ -509,11 +510,13 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             if max_photo_amount:
                 await callback.message.edit_text(
                     f"Выберите фото для обработки. \n\n"
-                    f'Вы можете отправить фото как документы, одним или несколькими сообщениями и нажать "Готово", \n'
-                    f"или написать через запятую цифры из названий файлов, "
+                    f'- Прикрепите выбранные вами файлы. ❗️Важно прикреплять фотографии именно как файл, '
+                    f'а не как изображение.❗️ Затем нажмите кнопку "Готово" \n\n'
+                    f'- Так же, вы можете написать в сообщении боту, '
+                    f'через запятую цифры из названий файлов, '
                     f"без букв (для примера 988345 988356 988365 987444 ...)\n\n"
                     f"- ❗️ Пожалуйста, внимательно выбирайте номера, после запуска обработки, "
-                    f"возможности убрать выбранные вами файлы не будет ❗️ \n"
+                    f"возможности убрать выбранные вами файлы не будет ❗️ \n\n"
                     f"- Вы можете выбрать меньшее количество файлов, "
                     f"чем указано в вашем пакете, и потом добавить файлы в обработку \n\n"
                     f"- Общее количество обработанных файлов - {max_photo_amount}, согласно выбранному Вами пакету.",
@@ -690,6 +693,7 @@ async def handle_select_photos_as_docs(message: Message, state: FSMContext):
     data = await state.get_data()
     document: Document = message.document
     file_name = document.file_name
+    handled_media_groups = data.get('handled_media_groups', [])
     selected_task_dict = data.get('selected_task_dict')
     original_photo_path = data.get('original_photo_path')
     selected_files = data.get('selected_files') or []
@@ -721,15 +725,17 @@ async def handle_select_photos_as_docs(message: Message, state: FSMContext):
             selected_files.append(file_name)
         await state.update_data(selected_files=selected_files)
 
-    if selected_files:
+    logger.debug(f'output selected_files: {selected_files}')
+
+    media_group_id = message.media_group_id
+    if media_group_id and media_group_id not in handled_media_groups:
+        handled_media_groups.append(media_group_id)
+        await state.update_data(handled_media_groups=handled_media_groups)
         kb = await create_kb(
             ['Готово', 'Назад'],
             ['all_files_selected', 'go_back']
         )
-
-    logger.debug(f'output selected_files: {selected_files}')
-
-    await message.answer(f"Получены файлы: \n {str(selected_files).strip('[]')}", reply_markup=kb)
+        await message.answer(f"Получены файлы: \n {str(selected_files).strip('[]')}", reply_markup=kb)
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
@@ -796,6 +802,7 @@ async def process_update_task(callback: CallbackQuery, state: FSMContext):
 
 @form_router.message(SelectFilesForm.retouches_settings)
 async def retouches_settings(message: Message, state: FSMContext):
+    await state.update_data(selected_files=None)
     data = await state.get_data()
     task_data = data.get('task_data')
     task_status = data.get('task_status')
