@@ -543,7 +543,7 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             ["Назад"], ["go_back:package_selected"])
         await callback.message.edit_text(
             f"Для Вашей папки выбрано "
-            f"{len(selected_task_dict.get('files_list'))} фото"
+            f"{len(selected_task_dict.get('files_list'))} фото \n"
             f"Вы можете добавить фото отправив их как документ\n"
             f"Или ввести через пробел цифровые значения "
             f"из названий до "
@@ -735,7 +735,7 @@ async def handle_select_photos_as_docs(message: Message, state: FSMContext):
             ['Готово', 'Назад'],
             ['all_files_selected', 'go_back']
         )
-        await message.answer(f"Получены файлы: \n {str(selected_files).strip('[]')}", reply_markup=kb)
+        await message.answer("​", reply_markup=kb)
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
