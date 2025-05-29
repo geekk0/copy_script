@@ -55,7 +55,7 @@ async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@tasks_router.get("demo")
+@tasks_router.get("/demo")
 async def check_demo_task_exists(client_chat_id: int) -> EnhanceTaskResponse:
     try:
         client = await Client.get(chat_id=client_chat_id)
