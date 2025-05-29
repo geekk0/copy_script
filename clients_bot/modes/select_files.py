@@ -282,6 +282,11 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     btn_names.append("Назад")
     btn_values.append("go_back")
 
+    client_has_demo = await enh_back_api.check_demo_task_exists(callback.message.chat.id)
+    if not client_has_demo:
+        btn_names.insert(0, "Демо")
+        btn_values.insert(0, "demo")
+
     select_package_kb = await create_kb(btn_names, btn_values)
 
     await state.update_data(
@@ -318,6 +323,21 @@ async def process_certs_screen(callback: CallbackQuery, state: FSMContext):
     if "go_back" in callback.data:
         await state.set_state(SelectFilesForm.show_user_certs)
         await show_user_certs(callback, state)
+        return
+
+    elif callback.data == "demo":
+        selected_cert = {
+            'id': 7134548,
+            'number': '111',
+            'balance': 0,
+        }
+        await state.update_data(
+            as_new_package=True,
+            selected_cert=selected_cert,
+            max_photo_amount=10
+        )
+        await state.set_state(SelectFilesForm.new_task_screen)
+        await new_task_screen(callback, state)
         return
 
     elif callback.data == "new_package" or as_new_package:
@@ -498,12 +518,15 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
             await state.set_state(SelectFilesForm.process_digits_set)
             kb = await create_kb(["Назад"], ["go_back"])
             logger.debug(f"selected_cert: {selected_cert}")
-            try:
-                max_photo_amount = str(int((selected_cert.get('type').get('title')
-                                            .replace("Обработка ", "").replace(" фото", ""))))
-            except Exception as e:
-                logger.error(f"max_photo_amount error: {e}")
-                max_photo_amount = None
+            if data.get('max_photo_amount'):
+                max_photo_amount = data.get('max_photo_amount')
+            else:
+                try:
+                    max_photo_amount = str(int((selected_cert.get('type').get('title')
+                                                .replace("Обработка ", "").replace(" фото", ""))))
+                except Exception as e:
+                    logger.error(f"max_photo_amount error: {e}")
+                    max_photo_amount = None
             logger.debug(f"max_photo_amount: {max_photo_amount}")
 
             await state.update_data(max_photo_amount=max_photo_amount)
@@ -609,60 +632,30 @@ async def process_digits_set(message: Message, state: FSMContext):
             existing_task = checks_result.get('task')
 
             try:
-                if (existing_task.get('enhanced_files_count') +
-                        len(found_files) > max_photo_amount):
+                existing_files = set(existing_task.get('files_list') or [])
+                new_unique_files = list(found_files - existing_files)
+
+                if not new_unique_files:
+                    await message.answer("Выбранные файлы уже добавлены в обработку.")
+                    return
+
+                if existing_task.get('enhanced_files_count', 0) + len(new_unique_files) > max_photo_amount:
                     await message.answer("Общее количество выбранных фото превышено")
                     return
-                else:
-                    existing_task['files_list'] = (
-                            (existing_task.get('files_list') or []) + list(found_files))
 
-                    # добавление файлов в существующую таску
-                    logger.debug(f'put existing_task: {existing_task}')
-                    await state.update_data(updating_task=existing_task)
-                    # try:
-                    #     await enh_back_api.update_enhance_task(
-                    #         task_id=existing_task.get('id'),
-                    #         task_data={
-                    #             'files_list': existing_task.get('files_list'),
-                    #             'status': StatusEnum.QUEUED.value
-                    #         }
-                    #     )
-                    # except Exception as e:
-                    #     logger.error(e)
-                    #
-                    # try:
-                    #     await prepare_enhance_task(
-                    #         original_photo_path,
-                    #         existing_task.get('files_list'),
-                    #         existing_task.get('yclients_certificate_code')
-                    #     )
-                    # except Exception as e:
-                    #     logger.error(f"error prepare_enhance_task: {e}")
-                    #
-                    # try:
-                    #     await add_to_ai_queue(
-                    #         original_photo_path + "_task_" + str(existing_task.get('yclients_certificate_code')),
-                    #         studios_mapping[selected_record_dict.get('studio')],
-                    #         True,
-                    #         existing_task.get('selected_action')
-                    #     )
-                    # except Exception as e:
-                    #     logger.error(e)
+                existing_task['files_list'] = list(existing_files | set(new_unique_files))
+                await state.update_data(updating_task=existing_task)
+                update_task_kb = await create_kb(
+                    ['Настроить', 'Готово'], ['select_preset', 'finalize'])
 
-                    update_task_kb = await create_kb(
-                        ['Настроить', 'Готово'], ['select_preset', 'finalize'])
+                await state.set_state(SelectFilesForm.process_update_task)
 
-                    await state.set_state(SelectFilesForm.process_update_task)
-
-                    await message.answer(
-                        f"Выбраны для обработки:\n"
-                        f"{' '.join(map(str, existing_task.get('files_list')))}\n",
-                        reply_markup=update_task_kb
-                        # f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются"
-                    )
-                    return
-
+                await message.answer(
+                    f"Выбраны для обработки:\n"
+                    f"{' '.join(map(str, existing_task.get('files_list')))}\n",
+                    reply_markup=update_task_kb
+                )
+                return
             except Exception as e:
                 logger.error(e)
 
@@ -728,14 +721,14 @@ async def handle_select_photos_as_docs(message: Message, state: FSMContext):
     logger.debug(f'output selected_files: {selected_files}')
 
     media_group_id = message.media_group_id
-    if media_group_id and media_group_id not in handled_media_groups:
+    if not media_group_id or media_group_id not in handled_media_groups:
         handled_media_groups.append(media_group_id)
         await state.update_data(handled_media_groups=handled_media_groups)
         kb = await create_kb(
             ['Готово', 'Назад'],
             ['all_files_selected', 'go_back']
         )
-        await message.answer("​", reply_markup=kb)
+        await message.answer("Файлы добавлены", reply_markup=kb)
 
 
 @form_router.callback_query(SelectFilesForm.process_digits_set)
@@ -761,16 +754,22 @@ async def process_selected_photos_as_docs(callback: CallbackQuery, state: FSMCon
             selected_task_dict['files_list'] += selected_files
         if checks_result.get('exists'):
             existing_task = checks_result.get('task')
-            if (existing_task.get('enhanced_files_count') +
-                    len(selected_files) > max_photo_amount):
+
+            existing_files = set(existing_task.get('files_list') or [])
+            new_unique_files = list(selected_files - existing_files)
+
+            if not new_unique_files:
+                await callback.message.answer("Выбранные файлы уже добавлены в обработку.")
+                return
+
+            if existing_task.get('enhanced_files_count', 0) + len(new_unique_files) > max_photo_amount:
                 await callback.message.answer("Общее количество выбранных фото превышено")
                 return
-            else:
-                existing_task['files_list'] = (
-                        (existing_task.get('files_list') or []) + list(selected_files))
 
-                await state.update_data(updating_task=existing_task)
-                await retouches_settings(callback.message, state)
+            existing_task['files_list'] = list(existing_files | set(new_unique_files))
+            await state.update_data(updating_task=existing_task)
+            await retouches_settings(callback.message, state)
+
         else:
             task_data = {
                 'folder_path': original_photo_path,

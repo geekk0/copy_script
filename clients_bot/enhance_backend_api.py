@@ -77,6 +77,17 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в add_client: {e}")
             return False
 
+    async def check_demo_task_exists(self, client_chat_id: int):
+        method = "GET"
+        endpoint = "/tasks/demo"
+        params = {"client_chat_id": client_chat_id}
+        try:
+            response = await self.send_request(method, endpoint, params=params)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Произошла ошибка в add_client: {e}")
+            return False
+
     async def add_enhance_task(self, task_data: dict):
         method = "POST"
         endpoint = "/tasks"

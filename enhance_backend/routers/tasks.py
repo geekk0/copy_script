@@ -11,7 +11,7 @@ from os import environ
 from bs4 import BeautifulSoup
 
 
-from enhance_backend.models import StatusEnum, Client, Package
+from enhance_backend.models import StatusEnum, Client, Package, EnhanceTask
 from enhance_backend.schemas import EnhanceTaskResponse, EnhanceTaskRequest, \
     EnhanceTaskUpdate, EnhanceTaskResponseWithDetails, ClientResponse
 from enhance_backend.db_manager import DatabaseManager
@@ -50,6 +50,18 @@ async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@tasks_router.get("demo")
+async def check_demo_task_exists(client_chat_id: int) -> EnhanceTaskResponse:
+    try:
+        client = await Client.get(chat_id=client_chat_id)
+        task = await EnhanceTask.get_or_none(price=0, client_id=client.id)
+        return task
+
     except Exception as e:
         logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
