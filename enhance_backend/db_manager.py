@@ -107,11 +107,10 @@ class DatabaseManager:
 
     @staticmethod
     async def get_clients_enhance_tasks(
-            client_id: int, yclients_records_id: int) -> list[EnhanceTask]:
+            client_id: int) -> list[EnhanceTask]:
         client = await Client.get(id=client_id)
         return await EnhanceTask.filter(
             client_id=client.id,
-            yclients_record_id=yclients_records_id
         ).select_related('client')
 
     @staticmethod

@@ -26,10 +26,10 @@ load_dotenv()
 
 
 @tasks_router.get("")
-async def get_clients_enhance_tasks(client_id: int, yclients_records_id: int)\
+async def get_clients_enhance_tasks(client_id: int)\
         -> list[EnhanceTaskResponseWithDetails]:
     try:
-        tasks = await db_manager.get_clients_enhance_tasks(client_id, yclients_records_id)
+        tasks = await db_manager.get_clients_enhance_tasks(client_id)
         result = [
             EnhanceTaskResponseWithDetails(
                 id=task.id,

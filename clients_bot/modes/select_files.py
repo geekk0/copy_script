@@ -241,10 +241,18 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         selected_record_dict = [x for x in data.get('records_objects')
                                 if x.get('record_id') == int(callback.data)][0]
     logger.debug(f"selected record: {selected_record_dict}")
-    existing_user_tasks = await enh_back_api.get_client_tasks(
-        client_id, selected_record_dict.get("record_id"))
+
+    all_existing_user_tasks = await enh_back_api.get_client_tasks(
+        client_id)
+    logger.debug(f"all_existing_user_tasks: {all_existing_user_tasks}")
+
+    existing_user_tasks_for_record = [
+        task for task in all_existing_user_tasks
+        if task.get("yclients_record_id") == selected_record_dict.get("record_id")
+    ]
+
     tasks_for_current_record = [
-        task for task in existing_user_tasks
+        task for task in existing_user_tasks_for_record
         if task.get("yclients_record_id") == selected_record_dict.get("record_id")]
     logger.debug(f"tasks_for_current_record: {tasks_for_current_record}")
 
@@ -257,9 +265,9 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     btn_names = []
     btn_values = []
 
-    if existing_user_tasks:
+    if existing_user_tasks_for_record:
         existing_cert_numbers = [str(task["yclients_certificate_code"])
-                                 for task in existing_user_tasks]
+                                 for task in existing_user_tasks_for_record]
         free_certs = [cert for cert in enhance_certs
                       if cert.get('number') not in existing_cert_numbers]
     else:
@@ -274,10 +282,10 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     btn_names.append("Купить")
     btn_values.append("new_package")
 
-    if existing_user_tasks:
+    if existing_user_tasks_for_record:
         btn_names.append("В обработке")
         btn_values.append("existing_tasks")
-        await state.update_data(existing_user_tasks=existing_user_tasks)
+        await state.update_data(existing_user_tasks_for_record=existing_user_tasks_for_record)
 
     btn_names.append("Назад")
     btn_values.append("go_back")
@@ -314,7 +322,7 @@ async def process_certs_screen(callback: CallbackQuery, state: FSMContext):
     logger.debug("process_certs_screen")
     logger.debug(f"callback.data: {callback.data}")
     logger.debug(f"selected_task_dict: {selected_task_dict}")
-    tasks_list = data.get("existing_user_tasks")
+    tasks_list = data.get("existing_user_tasks_for_record")
     client_id = data.get('client_id')
     selected_record_dict = data.get("selected_record_dict")
     free_certs = data.get("free_certs")
@@ -381,11 +389,11 @@ async def show_user_tasks(callback: CallbackQuery, state: FSMContext):
         await show_user_certs(callback, state)
         return
 
-    existing_user_tasks = data.get('existing_user_tasks')
+    existing_user_tasks_for_record = data.get('existing_user_tasks_for_record')
     btn_names = []
     btn_values = []
-    if existing_user_tasks:
-        for i, task in enumerate(existing_user_tasks):
+    if existing_user_tasks_for_record:
+        for i, task in enumerate(existing_user_tasks_for_record):
             max_photos = task.get('max_photo_amount')
             if max_photos:
                 btn_names.append(f"{max_photos} фото")
@@ -416,7 +424,7 @@ async def show_selected_task(callback: CallbackQuery, state: FSMContext):
         await show_user_certs(callback, state)
         return
     try:
-        selected_task_dict = data.get('existing_user_tasks')[int(callback.data)]
+        selected_task_dict = data.get('existing_user_tasks_for_record')[int(callback.data)]
         logger.debug(f"selected_task_dict: {selected_task_dict}")
         callback_labels = []
         callback_data = []
