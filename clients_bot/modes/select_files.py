@@ -265,13 +265,8 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     btn_names = []
     btn_values = []
 
-    if existing_user_tasks_for_record:
-        existing_cert_numbers = [str(task["yclients_certificate_code"])
-                                 for task in existing_user_tasks_for_record]
-        free_certs = [cert for cert in enhance_certs
-                      if cert.get('number') not in existing_cert_numbers]
-    else:
-        free_certs = enhance_certs
+    free_certs = [cert for cert in enhance_certs
+                  if cert.get('number') not in all_existing_user_tasks]
 
     if free_certs:
         btn_names += [f"{p.get('type').get('title').replace('Обработка ', '')}"
