@@ -246,6 +246,10 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
         client_id)
     logger.debug(f"all_existing_user_tasks: {all_existing_user_tasks}")
 
+    used_cert_numbers = [str(task.get("yclients_certificate_code"))
+                         for task in all_existing_user_tasks
+                         if task.get("yclients_certificate_code")]
+
     existing_user_tasks_for_record = [
         task for task in all_existing_user_tasks
         if task.get("yclients_record_id") == selected_record_dict.get("record_id")
@@ -266,7 +270,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     btn_values = []
 
     free_certs = [cert for cert in enhance_certs
-                  if cert.get('number') not in all_existing_user_tasks]
+                  if cert.get('number') not in used_cert_numbers]
 
     if free_certs:
         btn_names += [f"{p.get('type').get('title').replace('Обработка ', '')}"
