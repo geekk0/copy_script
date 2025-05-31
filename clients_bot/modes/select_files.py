@@ -69,7 +69,7 @@ async def start_select_files_form(message: Message, state: FSMContext):
         logger.debug(f'records: {records}')
     else:
         logger.debug(f'client with id: {message.chat.id} not exists')
-        await message.answer(text='Введите номер телефона')
+        await message.answer(text='Введите номер телефона, указанный при бронировании')
         await state.set_state(SelectFilesForm.create_user)
 
 
@@ -284,7 +284,7 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
 
     client_has_demo = await enh_back_api.check_demo_task_exists(callback.message.chat.id)
     if not client_has_demo:
-        btn_names.insert(0, "Демо")
+        btn_names.insert(0, "Бесплатные 10 фото")
         btn_values.insert(0, "demo")
 
     select_package_kb = await create_kb(btn_names, btn_values)
