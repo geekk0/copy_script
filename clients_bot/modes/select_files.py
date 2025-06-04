@@ -563,7 +563,8 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
                 previous_step='cert_to_task'
             )
             logger.warning(f"checks_result message: {checks_result.get('message')}")
-            await callback.message.edit_text(f"Не удалось создать задачу по обработке",
+            await callback.message.edit_text(f"Не удалось создать задачу по обработке, "
+                                             f"папка отсутствует на сервере",
                                              reply_markup=callback.message.reply_markup)
     else:
         logger.debug('имеется таска')
