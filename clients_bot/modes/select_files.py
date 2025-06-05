@@ -47,9 +47,11 @@ class SelectFilesForm(StatesGroup):
 
 
 studios_mapping = {
-    "НЕО": "Neo", "НЕО2": "Neo2", "Силуэт": "Силуэт", "Портрет": "Портрет(ЗАЛ)",
+    3432916: "Neo", 3843824: "Neo2", 3801061: "Neo2", "Силуэт": "Силуэт", 2843670: "Портрет(ЗАЛ)",
     "Отражение": "Отражение"
 }
+
+allowed_studios = [3432916, 3843824, 3801061]
 
 
 async def start_select_files_form(message: Message, state: FSMContext):
@@ -84,7 +86,7 @@ async def get_record_folder(record: dict) -> str:
     try:
         date = datetime.strptime(date_str, "%d.%m.%y %H:%M")
 
-        studio_name = studios_mapping[studio_name]
+        # studio_name = studios_mapping[studio_id]
 
         month_russian = [
             "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -211,12 +213,17 @@ async def get_records(message: Message, state: FSMContext):
     result = await api_manager.get_client_records_by_client_id(yclients_user_id)
     records = []
     for record in result.get('data'):
-        record_dict = {
-            'record_id': record.get('id'),
-            'date': await format_record_date(record.get('date')),
-            'studio': record.get('staff').get('name').split('"')[1]
-        }
-        records.append(record_dict)
+        studio_id = record.get('staff').get('id')
+        logger.debug(f'studio_id: {studio_id}')
+        if studio_id in allowed_studios:
+            record_dict = {
+                'record_id': record.get('id'),
+                'date': await format_record_date(record.get('date')),
+                'studio': studios_mapping[studio_id]
+            }
+            records.append(record_dict)
+
+    logger.debug(f'records_objects: {records}')
 
     await state.update_data(records_objects=records)
 
@@ -517,6 +524,10 @@ async def add_photos(callback: CallbackQuery, state: FSMContext):
     )
 
     logger.debug(f'checks_result: {checks_result}')
+
+    if not checks_result.get('status'):
+        await callback.message.answer(f'Папка отсутствует на сервере')
+        return
 
     if not selected_task_dict:
         logger.debug("создаем новую таску")
@@ -924,7 +935,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
             await add_to_ai_queue(
                 folder=original_photo_path + "_task_" + str(
                     updating_task_data.get('yclients_certificate_code')),
-                studio_name=studios_mapping[selected_record_dict.get('studio')],
+                studio_name=selected_record_dict.get('studio'),
                 task_mode=True,
                 action=action_name
             )
@@ -962,7 +973,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
             os.rename(original_photo_path, new_folder_name)
             await add_to_ai_queue(
                 new_folder_name,
-                studios_mapping[selected_record_dict.get('studio')],
+                selected_record_dict.get('studio'),
                 True,
                 action_name
             )
@@ -981,7 +992,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
         try:
             await add_to_ai_queue(
                 original_photo_path + "_task_" + str(task_data.get('yclients_certificate_code')),
-                studios_mapping[selected_record_dict.get('studio')],
+                selected_record_dict.get('studio'),
                 True,
                 action_name
             )
@@ -1002,6 +1013,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
         message_text += " ".join(map(str, task_data.get('files_list')))
 
     await callback.message.answer(message_text)
+    await state.clear()
 
 
 @form_router.callback_query(SelectFilesForm.process_all_files)

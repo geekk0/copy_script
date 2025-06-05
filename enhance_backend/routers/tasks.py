@@ -110,7 +110,7 @@ async def change_task_status(task_id: int, status: str):
 
 
 @tasks_router.patch("/status/change")
-async def change_task_status(cert_number: str, status: str):
+async def change_task_status(cert_number: str, status: str, folder: str = None):
     try:
         status_enum = get_status_enum_by_value(status)
 
@@ -118,7 +118,10 @@ async def change_task_status(cert_number: str, status: str):
         task_update_data = (
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
-        task = await db_manager.get_enhance_task_by_cert(cert_number)
+        if folder:
+            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, folder)
+        else:
+            task = await EnhanceTask.get(yclients_certificate_code=cert_number)
         await db_manager.update_enhance_task(task.id, task_update_data)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -142,9 +145,13 @@ async def remove_task(task_id: int) -> dict[str, str]:
 @tasks_router.post("/completed")
 async def task_is_completed(task_data: dict) -> None:
     cert_number = task_data.get('cert_number')
+    folder = task_data.get('folder')
     try:
-        task = await db_manager.get_enhance_task_by_cert(cert_number)
-        client = await task.client.first()
+        if folder:
+            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, folder)
+        else:
+            task = await EnhanceTask.get(yclients_certificate_code=cert_number)
+        client = task.client.first()
         folder_path = task.folder_path
         actual_folder = f'{folder_path}_task_{str(task.yclients_certificate_code)}_AI'
         client_chat_id = client.chat_id

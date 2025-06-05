@@ -123,9 +123,10 @@ class EnhanceCaller:
                 data['cert_code'] = client_cert_code
                 if '_renamed' in client_cert_code:
                     renamed = True
+                    folder_for_status_change = folder.split('_task_')[0]
                     send_folder_status_to_backend(
                         client_cert_code.replace('_renamed', ''),
-                        StatusEnum.PROCESSING.value)
+                        StatusEnum.PROCESSING.value, folder_for_status_change)
                 else:
                     send_folder_status_to_backend(client_cert_code,
                                                   StatusEnum.PROCESSING.value)
@@ -183,7 +184,12 @@ class EnhanceCaller:
             elif "_task" in result_folder_name:
                 self.bound_logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
-                send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
+                folder_for_status_change = folder.split('_task_')[0]
+                send_folder_status_to_backend(
+                    client_cert_code,
+                    StatusEnum.COMPLETED.value,
+                    True,
+                    folder_for_status_change)
             try:
                 self.remove_from_processed_folders(folder)
             except Exception as e:
@@ -398,16 +404,20 @@ def run_enh_callers_for_host(host):
         time.sleep(10)
 
 
-def send_folder_status_to_backend(cert_number, status, completed=False):
+def send_folder_status_to_backend(cert_number, status, completed=False, folder=None):
     url = f"http://127.0.0.1:{str(backend_port)}/tasks/status/change"
     if completed:
         url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
     body = {"cert_number": cert_number}
+    params = {"cert_number": cert_number, "status": status}
+    if folder:
+        body['folder'] = folder
+        params['folder'] = folder
     try:
         if completed:
             response = requests.post(url, json=body)
         else:
-            response = requests.patch(url, params={"cert_number": cert_number, "status": status})
+            response = requests.patch(url, params=params)
         if response.status_code != 200:
             logger.error(f"Failed to send folder status to backend: {response.status_code}")
     except Exception as e:
