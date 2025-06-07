@@ -110,7 +110,7 @@ async def change_task_status(task_id: int, status: str):
 
 
 @tasks_router.patch("/status/change")
-async def change_task_status(cert_number: str, status: str, folder: str = None):
+async def change_task_status(cert_number: str, status: str, demo_task: bool = False):
     try:
         status_enum = get_status_enum_by_value(status)
 
@@ -118,8 +118,8 @@ async def change_task_status(cert_number: str, status: str, folder: str = None):
         task_update_data = (
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
-        if folder:
-            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, folder)
+        if demo_task:
+            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, price=0)
         else:
             task = await EnhanceTask.get(yclients_certificate_code=cert_number)
         await db_manager.update_enhance_task(task.id, task_update_data)
@@ -145,10 +145,10 @@ async def remove_task(task_id: int) -> dict[str, str]:
 @tasks_router.post("/completed")
 async def task_is_completed(task_data: dict) -> None:
     cert_number = task_data.get('cert_number')
-    folder = task_data.get('folder')
+    demo_task = task_data.get('folder') or False
     try:
-        if folder:
-            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, folder)
+        if demo_task:
+            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, price=0)
         else:
             task = await EnhanceTask.get(yclients_certificate_code=cert_number)
         client = task.client.first()

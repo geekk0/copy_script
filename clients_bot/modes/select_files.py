@@ -23,6 +23,7 @@ from enhance_backend.models import StatusEnum
 
 load_dotenv()
 YOOKASSA_PROVIDER_TOKEN = os.getenv("YOOKASSA_PROVIDER_TOKEN")
+default_cert_number = os.getenv('DEFAULT_CERT_NUMBER')
 
 api_manager = YClientsAPIManager()
 enh_back_api = EnhanceBackendAPI()
@@ -342,7 +343,7 @@ async def process_certs_screen(callback: CallbackQuery, state: FSMContext):
     elif callback.data == "demo":
         selected_cert = {
             'id': 7134548,
-            'number': '111',
+            'number': default_cert_number,
             'balance': 0,
         }
         await state.update_data(

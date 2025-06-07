@@ -114,10 +114,10 @@ class DatabaseManager:
         ).select_related('client')
 
     @staticmethod
-    async def get_enhance_task_by_cert_and_folder(cert_number, folder):
+    async def get_enhance_task_by_cert_and_folder(cert_number, price):
         return await EnhanceTask.get(
             yclients_certificate_code=cert_number,
-            folder_path=folder
+            price=price
         )
 
 
