@@ -119,9 +119,9 @@ async def change_task_status(cert_number: str, status: str, demo_task: bool = Fa
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
         if demo_task:
-            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, price=0)
+            task = await db_manager.get_demo_enhance_task(cert_number)
         else:
-            task = await EnhanceTask.get(yclients_certificate_code=cert_number)
+            task = await db_manager.get_regular_enhance_task(cert_number)
         await db_manager.update_enhance_task(task.id, task_update_data)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
