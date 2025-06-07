@@ -905,6 +905,11 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
 
     action_name = f'{retouches_setting}_{tone_setting}'.lower()
 
+    if default_cert_number in original_photo_path:
+        demo_task = True
+    else:
+        demo_task = False
+
     if data.get('updating_task'):
         updating_task_data = data.get('updating_task')
         if 'finalize' in callback.data:
@@ -1001,7 +1006,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
         except Exception as e:
             logger.error(f"error add_to_ai_queue: {e}")
 
-    await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value)
+    await enh_back_api.change_task_status(task_data.get('id'), StatusEnum.QUEUED.value, demo_task=demo_task)
     await state.update_data(selected_cert=None, updating_task_data=None, task_data=None)
 
     message_text = (f"Фото добавлены в очередь, мы сообщим Вам как только они обработаются\n"

@@ -113,10 +113,12 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в update_enhance_task: {e}")
             return False
 
-    async def change_task_status(self, task_id, status):
+    async def change_task_status(self, task_id, status, demo_task: bool = False):
         method = "PATCH"
         endpoint = f"/tasks/status"
         params = {"task_id": task_id, "status": status}
+        if demo_task:
+            params['demo_task'] = True
         try:
             response = await self.send_request(method, endpoint, params=params)
             return response.json()
