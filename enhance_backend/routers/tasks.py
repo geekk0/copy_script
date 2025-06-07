@@ -145,13 +145,13 @@ async def remove_task(task_id: int) -> dict[str, str]:
 @tasks_router.post("/completed")
 async def task_is_completed(task_data: dict) -> None:
     cert_number = task_data.get('cert_number')
-    demo_task = task_data.get('folder') or False
+    demo_task = task_data.get('demo_task') or False
     try:
         if demo_task:
-            task = await db_manager.get_enhance_task_by_cert_and_folder(cert_number, price=0)
+            task = await db_manager.get_demo_enhance_task(cert_number)
         else:
-            task = await EnhanceTask.get(yclients_certificate_code=cert_number)
-        client = task.client.first()
+            task = await db_manager.get_regular_enhance_task(cert_number)
+        client = await task.client.first()
         folder_path = task.folder_path
         actual_folder = f'{folder_path}_task_{str(task.yclients_certificate_code)}_AI'
         client_chat_id = client.chat_id
