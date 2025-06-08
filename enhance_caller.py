@@ -410,7 +410,7 @@ def send_folder_status_to_backend(
     body = {"cert_number": cert_number, "folder_path": folder_path}
     params = {"cert_number": cert_number, "status": status, "folder_path": folder_path}
     if demo_task:
-        body['demo_task'] = True
+        body['demo_task'] = 'true'
     try:
         if completed:
             response = requests.post(url, json=body)
