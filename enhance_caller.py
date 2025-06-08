@@ -170,10 +170,7 @@ class EnhanceCaller:
 
                 cert_number = client_cert_code.replace('_renamed', '')
                 demo_task = default_cert_number == client_cert_code
-                if demo_task:
-                    folder_path = folder.split("_task_")[0]
-                else:
-                    folder_path = folder
+                folder_path = folder.split("_task_")[0]
                 self.bound_logger.debug(f'client_cert_code: {cert_number}')
                 send_folder_status_to_backend(
                     cert_number,
@@ -185,10 +182,7 @@ class EnhanceCaller:
                 self.bound_logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
                 demo_task = default_cert_number == client_cert_code
-                if demo_task:
-                    folder_path = folder.split("_task_")[0]
-                else:
-                    folder_path = folder
+                folder_path = folder.split("_task_")[0]
                 send_folder_status_to_backend(
                     client_cert_code,
                     StatusEnum.COMPLETED.value,
