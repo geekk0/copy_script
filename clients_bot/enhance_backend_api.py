@@ -121,7 +121,7 @@ class EnhanceBackendAPI:
             demo_task: bool = False
     ):
         method = "PATCH"
-        endpoint = f"/tasks/status/change"
+        endpoint = "/tasks/status/change"
         params = {"cert_number": cert_number, "status": status, "folder_path": folder_path}
         if demo_task:
             params['demo_task'] = "true"
