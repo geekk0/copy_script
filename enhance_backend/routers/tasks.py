@@ -93,7 +93,11 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
 
 
 @tasks_router.patch("/status/change")
-async def change_task_status(cert_number: str, status: str, folder_path: str, demo_task: bool = False):
+async def change_task_status(
+        cert_number: str,
+        status: str,
+        folder_path: str,
+        demo_task: str = 'false'):
     try:
         status_enum = get_status_enum_by_value(status)
 
@@ -101,7 +105,7 @@ async def change_task_status(cert_number: str, status: str, folder_path: str, de
         task_update_data = (
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
-        if demo_task:
+        if demo_task == 'true':
             task = await db_manager.get_demo_enhance_task(cert_number, folder_path)
         else:
             task = await db_manager.get_regular_enhance_task(cert_number, folder_path)

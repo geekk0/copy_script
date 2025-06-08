@@ -1007,7 +1007,7 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
             logger.error(f"error add_to_ai_queue: {e}")
 
     await enh_back_api.change_task_status(
-        task_data.get('id'),
+        task_data.get('yclients_certificate_code'),
         StatusEnum.QUEUED.value,
         folder_path=original_photo_path,
         demo_task=demo_task
