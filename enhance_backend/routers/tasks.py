@@ -92,25 +92,8 @@ async def update_task(task_id: int, task_data: EnhanceTaskUpdate) -> EnhanceTask
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@tasks_router.patch("/status")
-async def change_task_status(task_id: int, status: str):
-    try:
-        status_enum = get_status_enum_by_value(status)
-
-        logger.debug(f'status_enum: {status_enum}')
-        task_update_data = (
-            EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
-        )
-        await db_manager.update_enhance_task(task_id, task_update_data)
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="Task not found")
-    except Exception as e:
-        logger.error(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @tasks_router.patch("/status/change")
-async def change_task_status(cert_number: str, status: str, demo_task: bool = False):
+async def change_task_status(cert_number: str, status: str, folder_path: str, demo_task: bool = False):
     try:
         status_enum = get_status_enum_by_value(status)
 
@@ -119,9 +102,9 @@ async def change_task_status(cert_number: str, status: str, demo_task: bool = Fa
             EnhanceTaskUpdate(status=status_enum).model_dump(exclude_unset=True)
         )
         if demo_task:
-            task = await db_manager.get_demo_enhance_task(cert_number)
+            task = await db_manager.get_demo_enhance_task(cert_number, folder_path)
         else:
-            task = await db_manager.get_regular_enhance_task(cert_number)
+            task = await db_manager.get_regular_enhance_task(cert_number, folder_path)
         await db_manager.update_enhance_task(task.id, task_update_data)
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -146,11 +129,12 @@ async def remove_task(task_id: int) -> dict[str, str]:
 async def task_is_completed(task_data: dict) -> None:
     cert_number = task_data.get('cert_number')
     demo_task = task_data.get('demo_task') or False
+    folder_path = task_data.get('folder_path')
     try:
         if demo_task:
-            task = await db_manager.get_demo_enhance_task(cert_number)
+            task = await db_manager.get_demo_enhance_task(cert_number, folder_path)
         else:
-            task = await db_manager.get_regular_enhance_task(cert_number)
+            task = await db_manager.get_regular_enhance_task(cert_number, folder_path)
         client = await task.client.first()
         folder_path = task.folder_path
         actual_folder = f'{folder_path}_task_{str(task.yclients_certificate_code)}_AI'

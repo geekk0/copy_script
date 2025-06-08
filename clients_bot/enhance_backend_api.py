@@ -113,10 +113,10 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в update_enhance_task: {e}")
             return False
 
-    async def change_task_status(self, task_id, status, demo_task: bool = False):
+    async def change_task_status(self, task_id, status, folder_path: str, demo_task: bool = False):
         method = "PATCH"
         endpoint = f"/tasks/status"
-        params = {"task_id": task_id, "status": status}
+        params = {"task_id": task_id, "status": status, "folder_path": folder_path}
         if demo_task:
             params['demo_task'] = True
         try:
@@ -125,17 +125,6 @@ class EnhanceBackendAPI:
         except Exception as e:
             logger.error(f"Произошла ошибка в change_task_status: {e}")
             return False
-
-    # async def call_backend_completed(self, folder):
-    #     method = "POST"
-    #     endpoint = f"/tasks/completed"
-    #     body = {"folder": folder}
-    #     try:
-    #         response = await self.send_request(method, endpoint, json=body)
-    #         return response.json()
-    #     except Exception as e:
-    #         logger.error(f"Произошла ошибка в update_task: {e}")
-    #         return False
 
     async def get_available_packages(self):
         method = "GET"

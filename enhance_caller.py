@@ -392,28 +392,25 @@ def run_enh_callers_for_host(host):
                 bound_logger.debug(f"studio {settings_file} check failed")
                 continue
 
-            # handler_id = logger.add(f"general_enhance_caller.log",
-            #                         format="{time} {level} {message} host={extra[host]} studio={extra[studio_name]}",
-            #                         rotation="1 MB",
-            #                         compression='zip',
-            #                         level="DEBUG")
-
             enhance_caller = EnhanceCaller(settings=settings, ps_host=host, bound_logger=bound_logger)
             enhance_caller.run()
-            # bound_logger.remove(handler_id)
 
         time.sleep(10)
 
 
-def send_folder_status_to_backend(cert_number, status, completed=False, demo_task=False):
+def send_folder_status_to_backend(
+        cert_number, status,
+        folder_path: str,
+        completed=False,
+        demo_task=False
+):
     url = f"http://127.0.0.1:{str(backend_port)}/tasks/status/change"
     if completed:
         url = f"http://127.0.0.1:{str(backend_port)}/tasks/completed"
-    body = {"cert_number": cert_number}
-    params = {"cert_number": cert_number, "status": status}
+    body = {"cert_number": cert_number, "folder_path": folder_path}
+    params = {"cert_number": cert_number, "status": status, "folder_path": folder_path}
     if demo_task:
         body['demo_task'] = True
-        params['folder'] = True
     try:
         if completed:
             response = requests.post(url, json=body)

@@ -114,17 +114,19 @@ class DatabaseManager:
         ).select_related('client')
 
     @staticmethod
-    async def get_demo_enhance_task(cert_number):
+    async def get_demo_enhance_task(cert_number, folder_path):
         return await EnhanceTask.get(
             yclients_certificate_code=cert_number,
-            price=0
+            price=0,
+            folder_path=folder_path
         )
 
     @staticmethod
-    async def get_regular_enhance_task(cert_number):
+    async def get_regular_enhance_task(cert_number, folder_path):
         return await EnhanceTask.get(
             yclients_certificate_code=cert_number,
-            price__not=0
+            price__not=0,
+            folder_path=folder_path
     )
 
     @staticmethod
