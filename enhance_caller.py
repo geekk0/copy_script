@@ -127,10 +127,13 @@ class EnhanceCaller:
                     renamed = True
                     send_folder_status_to_backend(
                         client_cert_code.replace('_renamed', ''),
-                        StatusEnum.PROCESSING.value, demo_task=demo_task)
+                        StatusEnum.PROCESSING.value,
+                        demo_task=demo_task,
+                        folder_path=folder
+                    )
                 else:
                     send_folder_status_to_backend(
-                        client_cert_code, StatusEnum.PROCESSING.value, demo_task=demo_task)
+                        client_cert_code, StatusEnum.PROCESSING.value, demo_task=demo_task, folder_path=folder)
 
         self.bound_logger.debug(f'studio "{self.studio}": data: {data}')
         self.bound_logger.debug(f'call for route: {enhance_folder_url}')
@@ -150,21 +153,7 @@ class EnhanceCaller:
         else:
 
             self.bound_logger.debug(f"response data: {response.json()}")
-            #
             result_folder_name = response.json().get('folder_name')
-            #
-            # self.bound_logger.debug(f"result_folder_name: {result_folder_name}")
-            #
-            # if "_task" in result_folder_name:
-            #     logger.debug(f'remove_folder: {folder}')
-            #
-            #     self.remove_task_folder(folder)
-            #
-            #     send_folder_status_to_backend(client_cert_code, StatusEnum.COMPLETED.value, completed=True)
-            #
-            # self.remove_from_processed_folders(folder)
-            #
-            # return result_folder_name
 
             if renamed:
                 old_folder_name = folder.split("_")[0]
@@ -181,7 +170,12 @@ class EnhanceCaller:
 
                 cert_number = client_cert_code.replace('_renamed', '')
                 self.bound_logger.debug(f'client_cert_code: {cert_number}')
-                send_folder_status_to_backend(cert_number, StatusEnum.COMPLETED.value, completed=True)
+                send_folder_status_to_backend(
+                    cert_number,
+                    StatusEnum.COMPLETED.value,
+                    completed=True,
+                    folder_path=old_folder_name
+                )
             elif "_task" in result_folder_name:
                 self.bound_logger.debug(f'remove_folder: {folder}')
                 self.remove_task_folder(folder)
@@ -190,7 +184,9 @@ class EnhanceCaller:
                     client_cert_code,
                     StatusEnum.COMPLETED.value,
                     demo_task=demo_task,
-                    completed=True)
+                    completed=True,
+                    folder_path=folder
+                )
             try:
                 self.remove_from_processed_folders(folder)
             except Exception as e:
