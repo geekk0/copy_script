@@ -115,7 +115,7 @@ class EnhanceBackendAPI:
 
     async def change_task_status(self, task_id, status, folder_path: str, demo_task: bool = False):
         method = "PATCH"
-        endpoint = f"/tasks/status"
+        endpoint = f"/tasks/status/change"
         params = {"task_id": task_id, "status": status, "folder_path": folder_path}
         if demo_task:
             params['demo_task'] = True

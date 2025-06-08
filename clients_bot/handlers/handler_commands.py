@@ -27,9 +27,9 @@ async def handle_start_command(message: Message, state: FSMContext):
 #     await start_select_files_form(message, state)
 
 
-@command_router.message(Command("logout"))
-async def logout(message: Message):
-    await enh_back_api.remove_client(message.from_user.id)
+# @command_router.message(Command("logout"))
+# async def logout(message: Message):
+#     await enh_back_api.remove_client(message.from_user.id)
 
 
 # command_router.message.middleware(ChatIDChecker())

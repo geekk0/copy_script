@@ -30,15 +30,15 @@ async def add_client(client_data: ClientRequest) -> ClientResponse:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@clients_router.delete("")
-async def remove_client(client_chat_id: int) -> dict[str, str]:
-    try:
-        await db_manager.remove_client(int(client_chat_id))
-        return {"message": "Client removed successfully"}
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="Client not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @clients_router.delete("")
+# async def remove_client(client_chat_id: int) -> dict[str, str]:
+#     try:
+#         await db_manager.remove_client(int(client_chat_id))
+#         return {"message": "Client removed successfully"}
+#     except DoesNotExist:
+#         raise HTTPException(status_code=404, detail="Client not found")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @clients_router.get("/list")
