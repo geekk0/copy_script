@@ -17,7 +17,7 @@ db_manager = DatabaseManager()
 @packages_router.get("/list")
 async def get_all_packages() -> list[PackageResponse]:
     try:
-        packages = await Package.all()
+        packages = await Package.all().order_by("price")
         package_responses = [PackageResponse.model_validate(p)
                              for p in packages]
         return package_responses
