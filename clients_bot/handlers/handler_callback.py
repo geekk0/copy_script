@@ -4,7 +4,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-
+from tg_bot_aio.bot.modes.statistics import start_stats_mode
 from ..bot_setup import logger
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
@@ -30,6 +30,8 @@ async def handle_mode_callback(callback: CallbackQuery, state: FSMContext):
         await start_sharing_mode(callback, state)
     elif mode == "Рассылка":
         await callback.message.edit_text(text="Управление рассылкой в данный момент не поддерживается")
+    elif mode == "Статистика":
+        await start_stats_mode(callback, state)
 
 callback_router.message.middleware(ChatIDChecker())
 

@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from ..bot_setup import logger
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
+from ..modes.statistics import start_stats_mode
 from ..service import studio_path, studio_names, mode_names
 from ..sessions import Session
 from ..modes.indexing import start_index_mode
@@ -33,6 +34,8 @@ async def handle_mode_callback(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text="Управление рассылкой в данный момент не поддерживается")
     elif mode == "Очереди ФШ":
         await start_queue_mode(callback, state)
+    elif mode == "Статистика":
+        await start_stats_mode(callback, state)
 
 callback_router.message.middleware(ChatIDChecker())
 

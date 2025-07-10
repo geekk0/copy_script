@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from enhance_backend.database.db_config import DATABASE_URL
 from enhance_backend.routers.clients import clients_router
+from enhance_backend.routers.statistics import stats_router
 from enhance_backend.routers.tasks import tasks_router
 from enhance_backend.routers.packages import packages_router
 from enhance_backend.utils import logger
@@ -63,6 +64,7 @@ async def shutdown():
 app.include_router(clients_router)
 app.include_router(tasks_router)
 app.include_router(packages_router)
+app.include_router(stats_router)
 
 log_folder = os.path.join(os.getcwd(), "logs")
 if not os.path.exists(log_folder):
