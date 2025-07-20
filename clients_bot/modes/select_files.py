@@ -213,6 +213,12 @@ async def get_records(message: Message, state: FSMContext):
     yclients_user_id = data.get('yclients_user_id')
     result = await api_manager.get_client_records_by_client_id(yclients_user_id)
     records = []
+
+    if not result.get('data'):
+        await message.answer(text='Не найдена запись по этому номеру телефона')
+        await state.set_state(SelectFilesForm.create_user)
+        return
+
     for record in result.get('data'):
         studio_id = record.get('staff').get('id')
         logger.debug(f'studio_id: {studio_id}')
@@ -301,6 +307,9 @@ async def show_user_certs(callback: CallbackQuery, state: FSMContext):
     if not client_has_demo:
         btn_names.insert(0, "Бесплатные 10 фото")
         btn_values.insert(0, "demo")
+
+    btn_names.append("AImaEngineBot ")
+    btn_values.append("https://t.me/AImaEngineBot")
 
     select_package_kb = await create_kb(btn_names, btn_values)
 

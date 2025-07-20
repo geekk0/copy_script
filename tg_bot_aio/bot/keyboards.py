@@ -33,3 +33,16 @@ enhance_rs_kb = InlineKeyboardMarkup(inline_keyboard=[
         InlineKeyboardButton(text='Настройки', callback_data='Обработка:настройки'),
     ]
 ])
+
+
+# async def create_kb(button_labels, callback_data, elems_in_row=3):
+#     keyboard = []
+#     row = []
+#     for label, data in zip(button_labels, callback_data):
+#         row.append(InlineKeyboardButton(text=label, callback_data=data))
+#         if len(row) == elems_in_row:
+#             keyboard.append(row)
+#             row = []
+#     if row:
+#         keyboard.append(row)
+#     return InlineKeyboardMarkup(inline_keyboard=keyboard)
