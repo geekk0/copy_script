@@ -776,28 +776,53 @@ async def process_selected_photos_as_docs(callback: CallbackQuery, state: FSMCon
         return
 
     elif callback.data == "all_files_selected":
-        max_photo_amount = int(
-            data.get('max_photo_amount') or
-            selected_task_dict.get('max_photo_amount'))
-        if selected_task_dict:
-            selected_task_dict['files_list'] += selected_files
+        logger.debug(f'all_files_selected')
+        try:
+            max_photo_amount = int(
+                data.get('max_photo_amount') or
+                selected_task_dict.get('max_photo_amount'))
+        except Exception as e:
+            logger.error(e)
+        logger.debug(f'selected_task_dict: {selected_task_dict}')
+        # if selected_task_dict:
+        #     selected_task_dict['files_list'] += selected_files
         if checks_result.get('exists'):
             existing_task = checks_result.get('task')
 
-            existing_files = set(existing_task.get('files_list') or [])
-            new_unique_files = list(selected_files - existing_files)
+            try:
+                existing_files = set(existing_task.get('files_list') or [])
+                logger.debug(f'existing_files: {existing_files}')
+                logger.debug(f'selected_files: {selected_files}')
+                new_unique_files = list(set(selected_files) - existing_files)
 
-            if not new_unique_files:
-                await callback.message.answer("Выбранные файлы уже добавлены в обработку.")
-                return
+                if not new_unique_files:
+                    await callback.message.answer("Выбранные файлы уже добавлены в обработку.")
+                    return
 
-            if existing_task.get('enhanced_files_count', 0) + len(new_unique_files) > max_photo_amount:
-                await callback.message.answer("Общее количество выбранных фото превышено")
-                return
+                if existing_task.get('enhanced_files_count', 0) + len(new_unique_files) > max_photo_amount:
+                    await callback.message.answer("Общее количество выбранных фото превышено")
+                    return
 
-            existing_task['files_list'] = list(existing_files | set(new_unique_files))
+                existing_task['files_list'] = list(existing_files | set(new_unique_files))
+            except Exception as e:
+                logger.error(e)
+            logger.debug(f'existing_task files check')
             await state.update_data(updating_task=existing_task)
-            await retouches_settings(callback.message, state)
+            await state.set_state(SelectFilesForm.process_update_task)
+
+            try:
+                update_task_kb = await create_kb(
+                    ['Настроить', 'Готово'], ['select_preset', 'finalize'])
+                await callback.message.answer(
+                    f"Выбраны для обработки:\n"
+                    f"{' '.join(map(str, existing_task.get('files_list')))}\n",
+                    reply_markup=update_task_kb
+                )
+            except Exception as e:
+                logger.error(e)
+
+            # await retouches_settings(callback.message, state)
+
 
         else:
             task_data = {
@@ -819,6 +844,8 @@ async def process_selected_photos_as_docs(callback: CallbackQuery, state: FSMCon
 @form_router.callback_query(SelectFilesForm.process_update_task)
 async def process_update_task(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
+    logger.debug('process_update_task')
+    logger.debug(f'updating_task: {data.get("updating_task")}')
     if data.get('updating_task'):
         if callback.data == "select_preset":
             await state.set_state(SelectFilesForm.retouches_settings)
@@ -905,6 +932,7 @@ async def tone_settings(callback: CallbackQuery, state: FSMContext):
 async def finalize(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     logger.debug('finalize')
+    updating_task = data.get("updating_task")
 
     retouches_setting = data.get('retouches_setting')
     task_data = data.get('task_data')
@@ -914,13 +942,20 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
 
     action_name = f'{retouches_setting}_{tone_setting}'.lower()
 
-    if default_cert_number in original_photo_path:
+    logger.debug(f'original_photo_path: {original_photo_path}')
+    logger.debug(f'default_cert_number: {default_cert_number}')
+
+    if updating_task:
+        task_data = updating_task
+
+    if task_data.get('yclients_certificate_code') == default_cert_number:
         demo_task = True
     else:
         demo_task = False
 
-    if data.get('updating_task'):
-        updating_task_data = data.get('updating_task')
+    if updating_task:
+        logger.debug(f'updating_task found')
+        updating_task_data = updating_task
         if 'finalize' in callback.data:
             action_name = updating_task_data['selected_action']
         else:
