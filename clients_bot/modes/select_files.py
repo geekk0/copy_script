@@ -52,7 +52,7 @@ studios_mapping = {
     "Отражение": "Отражение", 2384342: "Отражение", 2684355: "Силуэт"
 }
 
-allowed_studios = [3432916, 3843824, 3801061]
+allowed_studios = [3432916, 3843824, 3801061, 2843670, 2384342, 2684355]
 
 
 async def start_select_files_form(message: Message, state: FSMContext):
