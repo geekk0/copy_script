@@ -49,7 +49,7 @@ class SelectFilesForm(StatesGroup):
 
 studios_mapping = {
     3432916: "Neo", 3843824: "Neo2", 3801061: "Neo2", "Силуэт": "Силуэт", 2843670: "Портрет(ЗАЛ)",
-    "Отражение": "Отражение"
+    "Отражение": "Отражение", 2384342: "Отражение", 2684355: "Силуэт"
 }
 
 allowed_studios = [3432916, 3843824, 3801061]
@@ -229,6 +229,9 @@ async def get_records(message: Message, state: FSMContext):
                 'studio': studios_mapping[studio_id]
             }
             records.append(record_dict)
+        else:
+            await message.answer(text="Для этой студии обработка по сертификату "
+                                      "пока недоступна. \n Обратитесь к администратору")
 
     logger.debug(f'records_objects: {records}')
 

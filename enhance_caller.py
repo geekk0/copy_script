@@ -71,18 +71,18 @@ class EnhanceCaller:
 
     def run(self):
 
-        if ("Neo" not in self.studio) and (self.studio != "Портрет(ЗАЛ)"):
-            if not os.path.exists(self.photos_path):
-                self.bound_logger.error(f'Folder {self.photos_path} does not exist')
-                return
-            today_folders = self.get_ready_folders_list()
-
-            self.bound_logger.debug(f'studio "{self.studio}": today_folders: {today_folders}')
-
-            self.index_ready_folders(today_folders)
-
-            for folder in today_folders:
-                self.add_to_ai_queue(folder)
+        # if ("Neo" not in self.studio) and (self.studio != "Портрет(ЗАЛ)"):
+        #     if not os.path.exists(self.photos_path):
+        #         self.bound_logger.error(f'Folder {self.photos_path} does not exist')
+        #         return
+        #     today_folders = self.get_ready_folders_list()
+        #
+        #     self.bound_logger.debug(f'studio "{self.studio}": today_folders: {today_folders}')
+        #
+        #     self.index_ready_folders(today_folders)
+        #
+        #     for folder in today_folders:
+        #         self.add_to_ai_queue(folder)
 
         self.run_ai_enhance_queue()
 
@@ -273,7 +273,7 @@ class EnhanceCaller:
                 self.chown_folder(new_folder)
                 self.index_folder(new_folder)
                 self.remove_from_ai_queue(folder)
-                self.remove_from_processed_folders(folder.split('/')[-1])
+                # self.remove_from_processed_folders(folder.split('/')[-1])
 
             except Exception as e:
                 self.bound_logger.error(f'studio "{self.studio}": enhance folder {folder} error: {e}')
