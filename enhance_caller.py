@@ -50,7 +50,7 @@ config_file_mapping = {
             }
 
 queue_files_mapping = {
-    'http://192.168.0.178:8000': 'ai_enhance_queue_ph_1.json',
+    # 'http://192.168.0.178:8000': 'ai_enhance_queue_ph_1.json',
     'http://192.168.0.199:8000': 'ai_enhance_queue_ph_2.json'
 }
 
