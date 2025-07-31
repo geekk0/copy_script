@@ -106,7 +106,7 @@ async def process_queue_select(callback: CallbackQuery, state: FSMContext):
             logger.info("before append")
             folders_kb = await create_kb(
                 list(folders_buttons) + ["Назад"],
-                list(folders_mapping.keys()) + ["Назад"], 1)
+                list(folders_mapping.keys()) + ["Назад"])
             await callback.message.edit_text(f'{queue_name}, выберите папку: ', reply_markup=folders_kb)
             logger.info("after append")
 
