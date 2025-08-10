@@ -896,6 +896,11 @@ async def tone_settings(callback: CallbackQuery, state: FSMContext):
     logger.debug('tone_settings')
     logger.debug(f'retouches_setting: {retouches_setting}')
 
+    if callback.data == "go_back":
+        await state.set_state(SelectFilesForm.retouches_settings)
+        await retouches_settings(callback.message, state)
+        return
+
     await state.update_data(retouches_setting=retouches_setting)
 
     tone_select_photos_mapping = {
