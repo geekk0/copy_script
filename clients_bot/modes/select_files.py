@@ -641,10 +641,10 @@ async def process_digits_set(message: Message, state: FSMContext):
     found_numbers = set()
 
     for file in os.scandir(original_photo_path):
-        logger.debug(f"Parsed number from filename '{file.name}': '{file_number_str}'")
         if file.is_file():
             try:
                 file_number_str = file.name.split('-')[1].split('.')[0]
+                logger.debug(f"Parsed number from filename '{file.name}': '{file_number_str}'")
                 if file_number_str in photos_digits_set:
                     logger.debug(f"File '{file.name}' matches input number '{file_number_str}', adding to found_files")
                     found_files.add(file.name)
