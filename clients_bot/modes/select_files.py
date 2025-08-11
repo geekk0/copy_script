@@ -638,18 +638,25 @@ async def process_digits_set(message: Message, state: FSMContext):
 
     logger.debug(f'original_photo_path: {original_photo_path}')
 
+    found_numbers = set()
+
     for file in os.scandir(original_photo_path):
+        logger.debug(f"Parsed number from filename '{file.name}': '{file_number_str}'")
         if file.is_file():
             try:
                 file_number_str = file.name.split('-')[1].split('.')[0]
                 if file_number_str in photos_digits_set:
+                    logger.debug(f"File '{file.name}' matches input number '{file_number_str}', adding to found_files")
                     found_files.add(file.name)
+                    found_numbers.add(file_number_str)
             except (IndexError, ValueError):
+                logger.warning(f"Failed to parse filename '{file.name}': {e}")
                 continue
 
-    missing_numbers = (photos_digits_set -
-                       {file.name.split('-')[1].split('.')[0]
-                        for file in os.scandir(original_photo_path) if file.is_file()})
+    missing_numbers = photos_digits_set - found_numbers
+    # missing_numbers = (photos_digits_set -
+    #                    {file.name.split('-')[1].split('.')[0]
+    #                     for file in os.scandir(original_photo_path) if file.is_file()})
 
     logger.debug(f"missing numbers: {missing_numbers}")
 
