@@ -2,6 +2,7 @@ import imaplib
 import email
 import smtplib
 import time
+from datetime import datetime, date
 from os import environ
 
 import fitz
@@ -144,17 +145,33 @@ class CertsService:
             logger.debug(f"api/v1/loyalty/certificates/ response: {response.json()}")
             logger.debug(f"api/v1/loyalty/certificates/ response length: {len(response.json()['data'])}")
 
+            data = response.json().get('data', [])
+            today = date.today()
+
+            filtered = []
+            for x in data:
+                created_str = x.get('created_date')
+                if not created_str:
+                    logger.warning(f"Certificate {x.get('id')} has no created_date — skipped")
+                    continue
+                try:
+                    created_dt = datetime.fromisoformat(x['created_date'])
+                    if created_dt.date() == today:
+                        filtered.append(x)
+                except Exception as e:
+                    logger.warning(f"Can't parse created_date for {x}: {e}")
+
             result = None
 
-            if len(response.json()['data']) == 1:
+            if len(filtered) == 1:
                 result = {
-                    'code': response.json()['data'][0]['number'],
-                    'number': response.json()['data'][0]['id']
+                    'code': filtered[0]['number'],
+                    'number': filtered[0]['id']
                 }
-            elif len(response.json()['data']) > 1:
+            elif len(filtered) > 1:
                 result = {
-                    'code': [x['number'] for x in response.json()['data']],
-                    'number': response.json()['data'][0]['id']
+                    'code': [x['number'] for x in filtered],
+                    'number': filtered[0]['id']
                 }
 
             return result
@@ -249,16 +266,17 @@ logger.add(
     compression='zip',
     level="DEBUG")
 
-while True:
-    cert_service = CertsService()
-    certs = cert_service.get_certs_data_from_emails()
-    logger.debug(f'certs: {certs}')
-    time.sleep(60)
-    print_cert_list = cert_service.enrich_certs_with_codes(certs)
-    logger.debug(f'print_cert_list: {print_cert_list}')
-    cert_service.print_certs(print_cert_list)
+if __name__ == "__main__":
+    while True:
+        cert_service = CertsService()
+        certs = cert_service.get_certs_data_from_emails()
+        logger.debug(f'certs: {certs}')
+        time.sleep(60)
+        print_cert_list = cert_service.enrich_certs_with_codes(certs)
+        logger.debug(f'print_cert_list: {print_cert_list}')
+        cert_service.print_certs(print_cert_list)
 
-    for cert in print_cert_list:
-        cert_service.send_email(cert)
+        for cert in print_cert_list:
+            cert_service.send_email(cert)
 
-    time.sleep(30)
+        time.sleep(30)
