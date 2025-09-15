@@ -957,10 +957,16 @@ async def finalize(callback: CallbackQuery, state: FSMContext):
     selected_record_dict = data.get('selected_record_dict')
     tone_setting = callback.data
 
+    if tone_setting == "go_back":
+        await state.set_state(SelectFilesForm.retouches_settings)
+        await retouches_settings(callback.message, state)
+        return
+
     action_name = f'{retouches_setting}_{tone_setting}'.lower()
 
     logger.debug(f'original_photo_path: {original_photo_path}')
     logger.debug(f'default_cert_number: {default_cert_number}')
+    logger.debug(f"action_name: {action_name}")
 
     if updating_task:
         task_data = updating_task
