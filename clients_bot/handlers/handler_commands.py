@@ -4,7 +4,7 @@ import sys
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from aiogram import Router
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, StateFilter
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
@@ -17,7 +17,7 @@ from ..modes.select_files import start_select_files_form, enh_back_api
 command_router = Router()
 
 
-@command_router.message(CommandStart(), state="*")
+@command_router.message(CommandStart(), StateFilter("*"))
 async def handle_start_command(message: Message, state: FSMContext):
     await state.clear()
     await start_select_files_form(message, state)
