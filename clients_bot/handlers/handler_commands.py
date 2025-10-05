@@ -17,8 +17,9 @@ from ..modes.select_files import start_select_files_form, enh_back_api
 command_router = Router()
 
 
-@command_router.message(CommandStart())
+@command_router.message(CommandStart(), state="*")
 async def handle_start_command(message: Message, state: FSMContext):
+    await state.clear()
     await start_select_files_form(message, state)
 
 
