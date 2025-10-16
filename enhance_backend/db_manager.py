@@ -20,8 +20,8 @@ class DatabaseManager:
         return ClientResponse.model_validate(client)
 
     @staticmethod
-    async def remove_client(chat_id: int):
-        client = await Client.get_or_none(chat_id=chat_id)
+    async def remove_client(phone: str):
+        client = await Client.get_or_none(phone_number=phone)
         if client:
             await client.delete()
 

@@ -53,11 +53,11 @@ class EnhanceBackendAPI:
             logger.error(f"Произошла ошибка в add_client: {e}")
             return False
 
-    async def remove_client(self, client_id: int):
+    async def remove_client(self, client_phone: str):
         method = "DELETE"
         endpoint = "/clients"
         try:
-            response = await self.send_request(method, endpoint, params={"client_chat_id": client_id})
+            response = await self.send_request(method, endpoint, params={"client_phone": client_phone})
             return response
         except Exception as e:
             logger.error(f"Произошла ошибка в add_client: {e}")

@@ -6,6 +6,8 @@ from aiogram.types import Message, ChatPhoto
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
+from clients_bot.modes.select_files import api_manager
+from clients_bot.enhance_backend_api import EnhanceBackendAPI
 from ..bot_setup import form_router, logger
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
@@ -55,8 +57,10 @@ async def queues_select_screen(message: Message, state: FSMContext):
         if password_match or logged_in:
             await state.update_data(logged_in=True)
             await state.set_state(QueueForm.queue_schedule)
-            queues_kb = await create_kb(list(queues_mapping.keys()) + ["Рестарт сервиса"],
-                                        list(queues_mapping.values()) + ["service_restart"])
+            final_kb_keys = list(queues_mapping.keys()) + ["Рестарт сервиса", "Логаут клиента"]
+            final_kb_values = list(queues_mapping.values()) + ["service_restart", "logout"]
+            queues_kb = await create_kb(final_kb_keys, final_kb_values)
+
             await message.answer(text=f"выберите очередь", reply_markup=queues_kb)
         else:
             await message.answer("Неправильный пароль", protect_content=True)
@@ -74,6 +78,9 @@ async def process_queue_select(callback: CallbackQuery, state: FSMContext):
         result = await ai_caller_restart()
         await callback.message.edit_text(f"Результат: {result}",
                                          reply_markup=callback.message.reply_markup)
+
+    elif callback.data == "logout":
+        await callback.message.edit_text(f"Введите номер телефона клиента")
 
     if not selected_queue:
         selected_queue = callback.data
@@ -149,6 +156,20 @@ async def folder_details_screen(callback: CallbackQuery, state: FSMContext):
 
         except Exception as e:
             logger.error(e)
+
+
+@form_router.callback_query(QueueForm.folder_details)
+async def process_logout(message: Message, state: FSMContext):
+    data = await state.get_data()
+    phone_number = message.text
+    if phone_number:
+        enhance_backend_api = EnhanceBackendAPI()
+        response = await enhance_backend_api.remove_client(client_phone=phone_number)
+        if response.status_code == 200:
+            await message.answer(text="Учетная запись клиента удалена")
+        else:
+            await message.answer(text="Не получилось удалить учетку клиента")
+
 
 
 @form_router.callback_query(QueueForm.process_folder_screen)
