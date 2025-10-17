@@ -5,7 +5,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ChatPhoto
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
-from clients_bot.enhance_backend_api import EnhanceBackendAPI
+from ..enhance_backend_api import EnhanceBackendAPI
 from ..bot_setup import form_router, logger
 from ..keyboards import create_kb
 from ..middleware import ChatIDChecker
