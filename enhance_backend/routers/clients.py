@@ -33,8 +33,13 @@ async def add_client(client_data: ClientRequest) -> ClientResponse:
 @clients_router.delete("")
 async def remove_client(client_phone: str) -> dict[str, str]:
     try:
-        await db_manager.remove_client(client_phone)
+        deleted = await db_manager.remove_client(client_phone)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Client not found")
         return {"message": "Client removed successfully"}
+
+    except HTTPException:
+        raise
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Client not found")
     except Exception as e:

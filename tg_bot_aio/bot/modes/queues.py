@@ -78,7 +78,9 @@ async def process_queue_select(callback: CallbackQuery, state: FSMContext):
                                          reply_markup=callback.message.reply_markup)
 
     elif callback.data == "logout":
+        await state.set_state(QueueForm.folder_details)
         await callback.message.edit_text(f"Введите номер телефона клиента")
+        return
 
     if not selected_queue:
         selected_queue = callback.data
@@ -156,17 +158,22 @@ async def folder_details_screen(callback: CallbackQuery, state: FSMContext):
             logger.error(e)
 
 
-@form_router.callback_query(QueueForm.folder_details)
+@form_router.message(QueueForm.folder_details)
 async def process_logout(message: Message, state: FSMContext):
     data = await state.get_data()
     phone_number = message.text
     if phone_number:
         enhance_backend_api = EnhanceBackendAPI()
-        response = await enhance_backend_api.remove_client(client_phone=phone_number)
-        if response.status_code == 200:
-            await message.answer(text="Учетная запись клиента удалена")
+        response = await enhance_backend_api.remove_client(phone_number)
+
+        if response is None:
+            await message.answer("Ошибка соединения с сервером ❌")
+        elif response.status_code == 200:
+            await message.answer("Учетная запись клиента удалена ✅")
+        elif response.status_code == 404:
+            await message.answer("Клиент не найден ❌")
         else:
-            await message.answer(text="Не получилось удалить учетку клиента")
+            await message.answer(f"Ошибка при удалении клиента ({response.status_code})")
 
 
 

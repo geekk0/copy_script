@@ -20,10 +20,14 @@ class DatabaseManager:
         return ClientResponse.model_validate(client)
 
     @staticmethod
-    async def remove_client(phone: str):
+    async def remove_client(phone: str) -> bool:
         client = await Client.get_or_none(phone_number=phone)
+        logger.info(f"Fetched client: {client}")
         if client:
             await client.delete()
+            return True
+        logger.info("Client not found")
+        return False
 
     @staticmethod
     async def update_client(client_chat_id: int, client_data: ClientRequest) -> Client:

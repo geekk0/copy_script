@@ -17,14 +17,17 @@ class EnhanceBackendAPI:
                            json=None, data=None, headers=None):
         url = f"{self.base_url}{endpoint}"
         logger.info(f"Отправка {method} запроса на {url} с параметрами: "
-                     f"{params}, телом: {json or data}")
+                    f"{params}, телом: {json or data}")
 
-        response = await self.client.request(
-            method, url, params=params, json=json, data=data, headers=headers
-        )
-        response.raise_for_status()
-        logger.info(f"Ответ: {response.status_code} - {response.text}")
-        return response
+        try:
+            response = await self.client.request(
+                method, url, params=params, json=json, data=data, headers=headers
+            )
+            logger.info(f"Ответ: {response.status_code} - {response.text}")
+            return response
+        except Exception as e:
+            logger.error(f"Ошибка при запросе {method} {url}: {e}")
+            return None
 
     async def close(self):
         await self.client.aclose()
@@ -56,12 +59,8 @@ class EnhanceBackendAPI:
     async def remove_client(self, client_phone: str):
         method = "DELETE"
         endpoint = "/clients"
-        try:
-            response = await self.send_request(method, endpoint, params={"client_phone": client_phone})
-            return response
-        except Exception as e:
-            logger.error(f"Произошла ошибка в add_client: {e}")
-            return False
+        response = await self.send_request(method, endpoint, params={"client_phone": client_phone})
+        return response
 
     async def get_client_tasks(self, client_id: int):
         method = "GET"
