@@ -55,7 +55,7 @@ async def queues_select_screen(message: Message, state: FSMContext):
         if password_match or logged_in:
             await state.update_data(logged_in=True)
             await state.set_state(QueueForm.queue_schedule)
-            final_kb_keys = list(queues_mapping.keys()) + ["Рестарт сервиса", "Логаут клиента"]
+            final_kb_keys = list(queues_mapping.keys()) + ["Рестарт сервиса", "Удаление клиента"]
             final_kb_values = list(queues_mapping.values()) + ["service_restart", "logout"]
             queues_kb = await create_kb(final_kb_keys, final_kb_values)
 
